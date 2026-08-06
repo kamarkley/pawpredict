@@ -2,7 +2,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -20,6 +21,28 @@ router = APIRouter(
 DatabaseSession = Annotated[Session, Depends(get_db)]
 
 
+def build_event_response(
+    event: Event,
+    event_type: EventType,
+    treat: TreatType | None,
+) -> EventResponse:
+    return EventResponse(
+        id=event.id,
+        dog_id=event.dog_id,
+        event_type_id=event.event_type_id,
+        event_type_code=event_type.code,
+        event_type_name=event_type.display_name,
+        event_time=event.event_time,
+        state=event.state,
+        location=event.location,
+        treat_type_id=event.treat_type_id,
+        treat_name=treat.name if treat else None,
+        notes=event.notes,
+        entry_method=event.entry_method,
+        created_at=event.created_at,
+    )
+
+
 @router.post(
     "",
     response_model=EventResponse,
@@ -28,7 +51,7 @@ DatabaseSession = Annotated[Session, Depends(get_db)]
 def create_event(
     event_data: EventCreate,
     db: DatabaseSession,
-) -> Event:
+) -> EventResponse:
     dog = db.get(Dog, event_data.dog_id)
 
     if dog is None:
@@ -72,6 +95,8 @@ def create_event(
             detail="This event requires an inside or outside location.",
         )
 
+    treat: TreatType | None = None
+
     if event_data.treat_type_id is not None:
         if not event_type.supports_treat:
             raise HTTPException(
@@ -93,22 +118,53 @@ def create_event(
             detail="A treat type is required.",
         )
 
+    now = datetime.now(timezone.utc)
+
     event = Event(
         id=uuid.uuid4(),
         dog_id=event_data.dog_id,
         event_type_id=event_data.event_type_id,
-        event_time=event_data.event_time or datetime.now(timezone.utc),
+        event_time=event_data.event_time or now,
         state=event_data.state,
         location=event_data.location,
         treat_type_id=event_data.treat_type_id,
         notes=event_data.notes,
         entry_method=event_data.entry_method,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=now,
+        updated_at=now,
     )
 
     db.add(event)
     db.commit()
     db.refresh(event)
 
-    return event
+    return build_event_response(event, event_type, treat)
+
+
+@router.get("", response_model=list[EventResponse])
+def list_events(
+    dog_id: uuid.UUID,
+    db: DatabaseSession,
+    start_time: datetime | None = Query(default=None),
+    end_time: datetime | None = Query(default=None),
+) -> list[EventResponse]:
+    statement = (
+        select(Event, EventType, TreatType)
+        .join(EventType, Event.event_type_id == EventType.id)
+        .outerjoin(TreatType, Event.treat_type_id == TreatType.id)
+        .where(Event.dog_id == dog_id)
+        .order_by(Event.event_time.desc())
+    )
+
+    if start_time is not None:
+        statement = statement.where(Event.event_time >= start_time)
+
+    if end_time is not None:
+        statement = statement.where(Event.event_time < end_time)
+
+    rows = db.execute(statement).all()
+
+    return [
+        build_event_response(event, event_type, treat)
+        for event, event_type, treat in rows
+    ]

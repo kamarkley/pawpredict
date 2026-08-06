@@ -32,10 +32,13 @@ export interface LoggedEvent {
   id: string;
   dog_id: string;
   event_type_id: number;
+  event_type_code: string;
+  event_type_name: string;
   event_time: string;
   state: EventState | null;
   location: EventLocation;
   treat_type_id: string | null;
+  treat_name: string | null;
   notes: string | null;
   entry_method: "QUICK_LOG" | "MANUAL";
   created_at: string;

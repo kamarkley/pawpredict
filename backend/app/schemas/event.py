@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 EventState = Literal["START", "END"]
 EventLocation = Literal["INSIDE", "OUTSIDE", "NOT_APPLICABLE"]
@@ -21,15 +21,16 @@ class EventCreate(BaseModel):
 
 
 class EventResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: uuid.UUID
     dog_id: uuid.UUID
     event_type_id: int
+    event_type_code: str
+    event_type_name: str
     event_time: datetime
     state: Optional[str]
     location: str
     treat_type_id: Optional[uuid.UUID]
+    treat_name: Optional[str]
     notes: Optional[str]
     entry_method: str
     created_at: datetime

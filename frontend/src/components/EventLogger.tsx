@@ -30,11 +30,13 @@ const EVENT_ICONS: Record<string, string> = {
 interface EventLoggerProps {
   dogId: string;
   dogName: string;
+  onEventSaved: () => void;
 }
 
 export function EventLogger({
   dogId,
   dogName,
+  onEventSaved,
 }: EventLoggerProps) {
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [treatTypes, setTreatTypes] = useState<TreatType[]>([]);
@@ -135,7 +137,7 @@ export function EventLogger({
         notes: notes.trim() || null,
         entry_method: "QUICK_LOG",
       });
-
+      onEventSaved();
       setMessage(`${selectedEvent.display_name} logged successfully.`);
       resetForm();
     } catch (err) {

@@ -69,3 +69,27 @@ export async function createEvent(
 
   return response.json() as Promise<LoggedEvent>;
 }
+
+export async function getEvents(
+  dogId: string,
+  startTime: string,
+  endTime: string,
+  signal?: AbortSignal,
+): Promise<LoggedEvent[]> {
+  const parameters = new URLSearchParams({
+    dog_id: dogId,
+    start_time: startTime,
+    end_time: endTime,
+  });
+
+  const response = await fetch(
+    `${API_URL}/events?${parameters.toString()}`,
+    { signal },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to load events: ${response.status}`);
+  }
+
+  return response.json() as Promise<LoggedEvent[]>;
+}
