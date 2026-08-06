@@ -458,3 +458,58 @@
   color: #20232a;
   background: #ffffff;
 }
+
+.manual-log-card {
+  margin-top: 1.5rem;
+  border: 1px solid #e6e8ec;
+  border-radius: 1.5rem;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgba(22, 25, 31, 0.08);
+  overflow: hidden;
+}
+
+.manual-log-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border: 0;
+  color: #20232a;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.manual-log-toggle > span:first-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.manual-log-toggle > span:last-child {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 999px;
+  background: #f2f3f5;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.manual-log-form {
+  padding: 0 1.5rem 1.5rem;
+  border-top: 1px solid #eceef1;
+}
+
+.manual-log-form fieldset {
+  margin: 1rem 0;
+  padding: 0;
+  border: 0;
+}
+
+.manual-log-form legend {
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}

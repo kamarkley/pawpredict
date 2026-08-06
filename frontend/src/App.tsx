@@ -4,6 +4,7 @@ import "./App.css";
 import { DogProfile } from "./components/DogProfile";
 import { EventLogger } from "./components/EventLogger";
 import { EventTimeline } from "./components/EventTimeline";
+import { ManualEventLogger } from "./components/ManualEventLogger";
 import { getDogs } from "./services/api";
 import type { Dog } from "./types/dog";
 import { getTreatTypes } from "./services/api";
@@ -74,6 +75,14 @@ function App() {
             dogName={dog.name}
             onEventSaved={() => {
               setTimelineRefreshKey((current) => current + 1);
+            }}
+          />
+
+          <ManualEventLogger
+            dogId={dog.id}
+            dogName={dog.name}
+            onEventSaved={() => {
+             setTimelineRefreshKey((current) => current + 1);
             }}
           />
 
