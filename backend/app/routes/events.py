@@ -11,7 +11,7 @@ from app.models.dog import Dog
 from app.models.event import Event
 from app.models.event_type import EventType
 from app.models.treat_type import TreatType
-from app.schemas.event import EventCreate, EventResponse
+from app.schemas.event import EventCreate, EventResponse, EventUpdate
 
 router = APIRouter(
     prefix="/events",
@@ -42,6 +42,62 @@ def build_event_response(
         created_at=event.created_at,
     )
 
+def validate_event_details(
+    *,
+    event_type: EventType,
+    state: str | None,
+    location: str,
+    treat_type_id: uuid.UUID | None,
+    db: Session,
+) -> TreatType | None:
+    if state is not None and not event_type.supports_state:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This event type does not support a start or end state.",
+        )
+
+    if event_type.supports_state and state is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This event requires a start or end state.",
+        )
+
+    if location != "NOT_APPLICABLE" and not event_type.supports_location:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This event type does not support a location.",
+        )
+
+    if event_type.supports_location and location == "NOT_APPLICABLE":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This event requires an inside or outside location.",
+        )
+
+    treat: TreatType | None = None
+
+    if treat_type_id is not None:
+        if not event_type.supports_treat:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This event type does not support a treat selection.",
+            )
+
+        treat = db.get(TreatType, treat_type_id)
+
+        if treat is None or not treat.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid treat type.",
+            )
+
+    if event_type.supports_treat and treat_type_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A treat type is required.",
+        )
+
+    return treat
 
 @router.post(
     "",
@@ -104,7 +160,13 @@ def create_event(
                 detail="This event type does not support a treat selection.",
             )
 
-        treat = db.get(TreatType, event_data.treat_type_id)
+        treat = validate_event_details(
+            event_type=event_type,
+            state=event_data.state,
+            location=event_data.location,
+            treat_type_id=event_data.treat_type_id,
+            db=db,
+        )
 
         if treat is None or not treat.is_active:
             raise HTTPException(
@@ -168,3 +230,99 @@ def list_events(
         build_event_response(event, event_type, treat)
         for event, event_type, treat in rows
     ]
+
+@router.patch("/{event_id}", response_model=EventResponse)
+def update_event(
+    event_id: uuid.UUID,
+    event_data: EventUpdate,
+    db: DatabaseSession,
+) -> EventResponse:
+    event = db.get(Event, event_id)
+
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found.",
+        )
+
+    event_type = db.get(EventType, event.event_type_id)
+
+    if event_type is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="The event type could not be found.",
+        )
+
+    updated_state = (
+        event_data.state
+        if "state" in event_data.model_fields_set
+        else event.state
+    )
+
+    updated_location = (
+        event_data.location
+        if "location" in event_data.model_fields_set
+        else event.location
+    )
+
+    updated_treat_type_id = (
+        event_data.treat_type_id
+        if "treat_type_id" in event_data.model_fields_set
+        else event.treat_type_id
+    )
+
+    treat = validate_event_details(
+        event_type=event_type,
+        state=updated_state,
+        location=updated_location,
+        treat_type_id=updated_treat_type_id,
+        db=db,
+    )
+
+    if "event_time" in event_data.model_fields_set:
+        if event_data.event_time is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Event time cannot be empty.",
+            )
+
+        event.event_time = event_data.event_time
+
+    if "state" in event_data.model_fields_set:
+        event.state = event_data.state
+
+    if "location" in event_data.model_fields_set:
+        event.location = event_data.location or "NOT_APPLICABLE"
+
+    if "treat_type_id" in event_data.model_fields_set:
+        event.treat_type_id = event_data.treat_type_id
+
+    if "notes" in event_data.model_fields_set:
+        event.notes = event_data.notes
+
+    event.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(event)
+
+    return build_event_response(event, event_type, treat)
+
+
+@router.delete(
+    "/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_event(
+    event_id: uuid.UUID,
+    db: DatabaseSession,
+) -> None:
+    event = db.get(Event, event_id)
+
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found.",
+        )
+
+    db.delete(event)
+    db.commit()

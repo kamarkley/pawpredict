@@ -6,19 +6,27 @@ import { EventLogger } from "./components/EventLogger";
 import { EventTimeline } from "./components/EventTimeline";
 import { getDogs } from "./services/api";
 import type { Dog } from "./types/dog";
+import { getTreatTypes } from "./services/api";
+import type { TreatType } from "./types/event";
 
 function App() {
   const [dog, setDog] = useState<Dog | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
+  const [treatTypes, setTreatTypes] = useState<TreatType[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
 
     async function loadDog() {
       try {
-        const dogs = await getDogs(controller.signal);
+        const [dogs, treats] = await Promise.all([
+          getDogs(controller.signal),
+          getTreatTypes(controller.signal),
+        ]);
+
+        setTreatTypes(treats);
 
         if (dogs.length === 0) {
           throw new Error("No dog profile was found.");
@@ -72,6 +80,10 @@ function App() {
           <EventTimeline
             dogId={dog.id}
             refreshKey={timelineRefreshKey}
+            treatTypes={treatTypes}
+            onTimelineChanged={() => {
+              setTimelineRefreshKey((current) => current + 1);
+            }}
           />
         </>
       )}

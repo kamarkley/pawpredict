@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
 
-import { getEvents } from "../services/api";
-import type { LoggedEvent } from "../types/event";
+import {
+  deleteEvent,
+  getEvents,
+  updateEvent,
+} from "../services/api";
+import type {
+  EventLocation,
+  EventState,
+  LoggedEvent,
+  TreatType,
+} from "../types/event";
 import { getLocalDayRange } from "../utils/date";
 
 const EVENT_ICONS: Record<string, string> = {
@@ -22,6 +31,8 @@ const EVENT_ICONS: Record<string, string> = {
 interface EventTimelineProps {
   dogId: string;
   refreshKey: number;
+  onTimelineChanged: () => void;
+  treatTypes: TreatType[];
 }
 
 function getEventDetails(event: LoggedEvent): string[] {
@@ -50,10 +61,23 @@ function getEventDetails(event: LoggedEvent): string[] {
 export function EventTimeline({
   dogId,
   refreshKey,
+  onTimelineChanged,
+  treatTypes,
 }: EventTimelineProps) {
   const [events, setEvents] = useState<LoggedEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [editingEvent, setEditingEvent] =
+    useState<LoggedEvent | null>(null);
+  const [editDateTime, setEditDateTime] = useState("");
+  const [editLocation, setEditLocation] =
+    useState<EventLocation>("NOT_APPLICABLE");
+  const [editState, setEditState] =
+    useState<EventState | null>(null);
+  const [editTreatTypeId, setEditTreatTypeId] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -86,6 +110,94 @@ export function EventTimeline({
 
     return () => controller.abort();
   }, [dogId, refreshKey]);
+
+  function beginEditing(event: LoggedEvent) {
+    const date = new Date(event.event_time);
+
+    const localDateTime = new Date(
+      date.getTime() - date.getTimezoneOffset() * 60_000,
+    )
+      .toISOString()
+      .slice(0, 16);
+
+    setEditingEvent(event);
+    setEditDateTime(localDateTime);
+    setEditLocation(event.location);
+    setEditState(event.state);
+    setEditTreatTypeId(event.treat_type_id ?? "");
+    setEditNotes(event.notes ?? "");
+    setError(null);
+  }
+
+  function cancelEditing() {
+    setEditingEvent(null);
+  }
+
+  async function saveEditedEvent() {
+    if (!editingEvent || !editDateTime) {
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      await updateEvent(editingEvent.id, {
+        event_time: new Date(editDateTime).toISOString(),
+        state: editState,
+        location: editLocation,
+        treat_type_id: editTreatTypeId || null,
+        notes: editNotes.trim() || null,
+      });
+
+      setEditingEvent(null);
+      onTimelineChanged();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "The event could not be updated.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function removeEvent(event: LoggedEvent) {
+    const eventTime = new Date(event.event_time).toLocaleTimeString(
+      "en-US",
+      {
+        hour: "numeric",
+        minute: "2-digit",
+      },
+    );
+
+    const confirmed = window.confirm(
+      `Delete the ${event.event_type_name} log from ${eventTime}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError(null);
+
+    try {
+      await deleteEvent(event.id);
+
+      if (editingEvent?.id === event.id) {
+        setEditingEvent(null);
+      }
+
+      onTimelineChanged();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "The event could not be deleted.",
+      );
+    }
+  }
 
   return (
     <section className="timeline-card">
@@ -149,11 +261,165 @@ export function EventTimeline({
                 {event.notes && (
                   <p className="timeline-notes">{event.notes}</p>
                 )}
+
+                <div className="timeline-actions">
+                  <button
+                    type="button"
+                    onClick={() => beginEditing(event)}
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    className="delete-action"
+                    type="button"
+                    onClick={() => void removeEvent(event)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </li>
           );
         })}
       </ol>
+
+      {editingEvent && (
+        <div className="edit-event-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Edit log</p>
+              <h3>{editingEvent.event_type_name}</h3>
+            </div>
+          </div>
+
+          <label className="field-label">
+            Date and time
+            <input
+              type="datetime-local"
+              value={editDateTime}
+              onChange={(event) =>
+                setEditDateTime(event.target.value)
+              }
+            />
+          </label>
+
+          {editingEvent.location !== "NOT_APPLICABLE" && (
+            <fieldset>
+              <legend>Location</legend>
+
+              <div className="option-row">
+                <button
+                  className={
+                    editLocation === "INSIDE"
+                      ? "selected-option"
+                      : ""
+                  }
+                  type="button"
+                  onClick={() => setEditLocation("INSIDE")}
+                >
+                  Inside
+                </button>
+
+                <button
+                  className={
+                    editLocation === "OUTSIDE"
+                      ? "selected-option"
+                      : ""
+                  }
+                  type="button"
+                  onClick={() => setEditLocation("OUTSIDE")}
+                >
+                  Outside
+                </button>
+              </div>
+            </fieldset>
+          )}
+
+          {editingEvent.state && (
+            <fieldset>
+              <legend>Session status</legend>
+
+              <div className="option-row">
+                <button
+                  className={
+                    editState === "START"
+                      ? "selected-option"
+                      : ""
+                  }
+                  type="button"
+                  onClick={() => setEditState("START")}
+                >
+                  Start
+                </button>
+
+                <button
+                  className={
+                    editState === "END"
+                      ? "selected-option"
+                      : ""
+                  }
+                  type="button"
+                  onClick={() => setEditState("END")}
+                >
+                  End
+                </button>
+              </div>
+            </fieldset>
+          )}
+
+          {editingEvent.event_type_code === "TREAT" && (
+            <label className="field-label">
+              Treat
+              <select
+                value={editTreatTypeId}
+                onChange={(event) =>
+                  setEditTreatTypeId(event.target.value)
+                }
+              >
+                <option value="">Choose a treat</option>
+
+                {treatTypes.map((treat) => (
+                  <option key={treat.id} value={treat.id}>
+                    {treat.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <label className="field-label">
+            Notes
+            <textarea
+              maxLength={500}
+              rows={3}
+              value={editNotes}
+              onChange={(event) =>
+                setEditNotes(event.target.value)
+              }
+            />
+          </label>
+
+          <div className="form-actions">
+            <button
+              className="cancel-button"
+              type="button"
+              onClick={cancelEditing}
+            >
+              Cancel
+            </button>
+
+            <button
+              className="save-button"
+              disabled={isSaving || !editDateTime}
+              type="button"
+              onClick={() => void saveEditedEvent()}
+            >
+              {isSaving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

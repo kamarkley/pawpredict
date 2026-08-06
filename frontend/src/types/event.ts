@@ -43,3 +43,11 @@ export interface LoggedEvent {
   entry_method: "QUICK_LOG" | "MANUAL";
   created_at: string;
 }
+
+export interface EventUpdate {
+  event_time?: string;
+  state?: EventState | null;
+  location?: EventLocation;
+  treat_type_id?: string | null;
+  notes?: string | null;
+}

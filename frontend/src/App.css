@@ -406,3 +406,55 @@
 .timeline-empty p {
   margin: 0;
 }
+
+.timeline-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.timeline-actions button {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #d8dbe0;
+  border-radius: 0.6rem;
+  background: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.timeline-actions .delete-action {
+  color: #9f2f2f;
+}
+
+.edit-event-panel {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid #d8dbe0;
+  border-radius: 1rem;
+  background: #f7f7f8;
+}
+
+.edit-event-panel h3 {
+  margin: 0;
+}
+
+.edit-event-panel fieldset {
+  margin: 1rem 0;
+  padding: 0;
+  border: 0;
+}
+
+.edit-event-panel legend {
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.field-label input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d8dbe0;
+  border-radius: 0.75rem;
+  color: #20232a;
+  background: #ffffff;
+}

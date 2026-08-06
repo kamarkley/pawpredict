@@ -19,6 +19,13 @@ class EventCreate(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=500)
     entry_method: EntryMethod = "QUICK_LOG"
 
+class EventUpdate(BaseModel):
+    event_time: Optional[datetime] = None
+    state: Optional[EventState] = None
+    location: Optional[EventLocation] = None
+    treat_type_id: Optional[uuid.UUID] = None
+    notes: Optional[str] = Field(default=None, max_length=500)
+
 
 class EventResponse(BaseModel):
     id: uuid.UUID

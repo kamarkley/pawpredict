@@ -2,6 +2,7 @@ import type { Dog } from "../types/dog";
 import type {
   EventCreate,
   EventType,
+  EventUpdate,
   LoggedEvent,
   TreatType,
 } from "../types/event";
@@ -92,4 +93,45 @@ export async function getEvents(
   }
 
   return response.json() as Promise<LoggedEvent[]>;
+}
+
+export async function updateEvent(
+  eventId: string,
+  updates: EventUpdate,
+): Promise<LoggedEvent> {
+  const response = await fetch(`${API_URL}/events/${eventId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!response.ok) {
+    const errorBody = (await response.json()) as {
+      detail?: string;
+    };
+
+    throw new Error(
+      errorBody.detail ?? `Failed to update event: ${response.status}`,
+    );
+  }
+
+  return response.json() as Promise<LoggedEvent>;
+}
+
+export async function deleteEvent(eventId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/events/${eventId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const errorBody = (await response.json()) as {
+      detail?: string;
+    };
+
+    throw new Error(
+      errorBody.detail ?? `Failed to delete event: ${response.status}`,
+    );
+  }
 }
