@@ -1,9 +1,11 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
+from psycopg import IntegrityError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -90,19 +92,28 @@ def create_event(data: EventCreate, db: DatabaseSession) -> EventResponse:
         option_id=data.option_id, numeric_value=data.numeric_value,
         unit=data.unit, severity=data.severity, db=db,
     )
+    event_time = data.event_time or datetime.now(timezone.utc)
+    validate_event_time(event_time)
     now = datetime.now(timezone.utc)
     event = Event(
         id=uuid.uuid4(), dog_id=data.dog_id, event_type_id=data.event_type_id,
-        event_time=data.event_time or now, state=data.state,
+        event_time=event_time, state=data.state,
         location=data.location, treat_type_id=None, option_id=data.option_id,
         numeric_value=data.numeric_value, unit=data.unit, severity=data.severity,
         notes=data.notes, entry_method=data.entry_method, created_at=now, updated_at=now,
     )
-    db.add(event)
-    db.commit()
-    db.refresh(event)
-    return build_event_response(event, event_type, option)
+    try:
+        db.add(event)
+        db.commit()
+        db.refresh(event)
+    except IntegrityError as exc:
+        db.rollback()
 
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The event could not be saved because its data was invalid.",
+        ) from exc
+    return build_event_response(event, event_type, option)
 
 @router.get("", response_model=list[EventResponse])
 def list_events(
@@ -136,13 +147,28 @@ def update_event(event_id: uuid.UUID, data: EventUpdate, db: DatabaseSession) ->
         "severity": values.get("severity", event.severity),
     }
     option = validate_details(dog_id=event.dog_id, event_type=event_type, db=db, **effective)
-    if "event_time" in values and values["event_time"] is None:
-        raise HTTPException(status_code=400, detail="Event time cannot be empty.")
+    if "event_time" in data.model_fields_set:
+        if data.event_time is None:
+           raise HTTPException(
+               status_code=status.HTTP_400_BAD_REQUEST,
+               detail="Event time cannot be empty.",
+           )
+
+        validate_event_time(data.event_time)
+        event.event_time = data.event_time
     for field, value in values.items():
         setattr(event, field, value)
     event.updated_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(event)
+    try:
+        db.commit()
+        db.refresh(event)
+    except IntegrityError as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The event could not be updated because its data was invalid.",
+        ) from exc
     return build_event_response(event, event_type, option)
 
 
@@ -151,3 +177,13 @@ def delete_event(event_id: uuid.UUID, db: DatabaseSession) -> None:
     event, _ = get_event_context(db, event_id)
     db.delete(event)
     db.commit()
+
+
+def validate_event_time(event_time: datetime) -> None:
+    now = datetime.now(timezone.utc)
+
+    if event_time > now + timedelta(minutes=5):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Event time cannot be in the future.",
+        )

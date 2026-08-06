@@ -9,6 +9,7 @@ import {
 import type { EventType, LoggedEvent, SavedOption } from "../types/event";
 import type { ObservationPeriod } from "../types/observation";
 import { getLocalDayRange } from "../utils/date";
+import { getCurrentLocalDateTime } from "../utils/date";
 import { EventFields, type EventFieldValues } from "./EventFields";
 
 const ICONS: Record<string, string> = {
@@ -174,7 +175,17 @@ export function EventTimeline({
       {editing && editingType && (
         <div className="edit-event-panel">
           <p className="eyebrow">Edit log</p><h3>{editing.event_type_name}</h3>
-          <label className="field-label">Date and time<input type="datetime-local" value={editDateTime} onChange={(event) => setEditDateTime(event.target.value)} /></label>
+          <label className="field-label">
+            Date and time
+            <input
+                type="datetime-local"
+                value={editDateTime}
+                max={getCurrentLocalDateTime()}
+                onChange={(event) =>
+                setEditDateTime(event.target.value)
+                }
+            />
+          </label>
           <EventFields dogId={dogId} eventType={editingType} options={options} values={values} onChange={setValues} onOptionCreated={onOptionCreated} />
           <div className="form-actions"><button className="cancel-button" type="button" onClick={() => setEditing(null)}>Cancel</button><button className="save-button" disabled={saving} type="button" onClick={() => void saveEdit()}>{saving ? "Saving…" : "Save changes"}</button></div>
         </div>

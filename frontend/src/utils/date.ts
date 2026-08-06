@@ -13,3 +13,13 @@ export function getLocalDayRange(date = new Date()): {
     end: end.toISOString(),
   };
 }
+
+export function getCurrentLocalDateTime(): string {
+  const now = new Date();
+
+  return new Date(
+    now.getTime() - now.getTimezoneOffset() * 60_000,
+  )
+    .toISOString()
+    .slice(0, 16);
+}

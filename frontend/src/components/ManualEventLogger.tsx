@@ -2,10 +2,11 @@ import { useState } from "react";
 
 import { createEvent } from "../services/api";
 import type { EventType, SavedOption } from "../types/event";
+import { getCurrentLocalDateTime } from "../utils/date";
 import { EventFields, type EventFieldValues } from "./EventFields";
 
 const EMPTY: EventFieldValues = { state: null, optionId: "", numericValue: "", unit: "", severity: "", notes: "" };
-function localNow() { const now = new Date(); return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
+function localNow() { return getCurrentLocalDateTime(); }
 
 interface Props {
   dogId: string;
@@ -28,13 +29,23 @@ export function ManualEventLogger({ dogId, dogName, eventTypes, options, onOptio
 
   function valid() {
     if (!selected || !dateTime) return false;
+    if (new Date(dateTime) > new Date()) return false;
+
     if (selected.supports_state && !values.state) return false;
-    if (selected.option_required && !values.optionId) return false;
-    if (selected.numeric_required && !values.numericValue) return false;
-    if (selected.severity_required && !values.severity) return false;
-    if (values.numericValue && selected.allowed_units.length > 0 && !values.unit) return false;
-    return true;
-  }
+     if (selected.option_required && !values.optionId) return false;
+     if (selected.numeric_required && !values.numericValue) return false;
+     if (selected.severity_required && !values.severity) return false;
+
+     if (
+       values.numericValue &&
+       selected.allowed_units.length > 0 &&
+       !values.unit
+     ) {
+       return false;
+     }
+
+     return true;
+    }
 
   async function save() {
     if (!selected || !valid()) return;
@@ -62,7 +73,15 @@ export function ManualEventLogger({ dogId, dogName, eventTypes, options, onOptio
       {expanded && <div className="manual-log-form">
         {message && <p className="success-message">{message}</p>}{error && <p className="event-error">{error}</p>}
         <label className="field-label">Event type<select value={eventTypeId} onChange={(event) => { setEventTypeId(event.target.value); setValues(EMPTY); }}><option value="">Choose an event</option>{eventTypes.map((type) => <option key={type.id} value={type.id}>{type.display_name}</option>)}</select></label>
-        <label className="field-label">Date and time<input type="datetime-local" value={dateTime} onChange={(event) => setDateTime(event.target.value)} /></label>
+        <label className="field-label">
+          Date and time
+          <input
+            type="datetime-local"
+            value={dateTime}
+            max={localNow()}
+            onChange={(event) => setDateTime(event.target.value)}
+          />
+        </label>
         {selected && <EventFields dogId={dogId} eventType={selected} options={options} values={values} onChange={setValues} onOptionCreated={onOptionCreated} />}
         <div className="form-actions"><button className="cancel-button" type="button" onClick={() => { setEventTypeId(""); setValues(EMPTY); }}>Clear</button><button className="save-button" disabled={!valid() || saving} type="button" onClick={() => void save()}>{saving ? "Saving…" : "Add to timeline"}</button></div>
       </div>}
