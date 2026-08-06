@@ -2,13 +2,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import check_database_connection
+from app.models.treat_type import TreatType  # noqa: F401
 from app.routes.dog_event_preferences import router as preferences_router
+from app.routes.dog_stat_preferences import router as stat_preferences_router
 from app.routes.dogs import router as dogs_router
 from app.routes.event_types import router as event_types_router
 from app.routes.events import router as events_router
 from app.routes.observation_periods import router as observation_periods_router
 from app.routes.saved_options import router as saved_options_router
-from app.models.treat_type import TreatType  # noqa: F401
 
 app = FastAPI(
     title="PawPredict API",
@@ -28,6 +29,7 @@ app.include_router(events_router)
 app.include_router(observation_periods_router)
 app.include_router(saved_options_router)
 app.include_router(preferences_router)
+app.include_router(stat_preferences_router)
 
 
 @app.get("/")

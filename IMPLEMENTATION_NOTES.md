@@ -45,3 +45,29 @@ cd frontend
 npm install
 npm run dev
 ```
+
+## Observation periods (migration 003)
+
+Run `database/migrations/003_observation_periods.sql` after migration 002.
+
+This feature adds:
+- active unobserved periods with no end time until the user returns
+- completed manual periods
+- reusable `OBSERVATION_REASON` options
+- edit/delete/end actions
+- overlap validation
+- observation periods merged into Today's Timeline
+
+Seeded reasons: Work, Errands, Daycare, Training class, With sitter, Boarding, Sleeping, and Other.
+
+## 004 — Pages and configurable daily dashboard
+
+Run `database/migrations/004_pages_and_dashboard.sql` after migrations 002 and 003.
+
+This update adds:
+- Today, Insights, and Settings pages using lightweight hash navigation.
+- A daily stats dashboard calculated from today's events and observation periods.
+- Per-dog dashboard card visibility and ordering.
+- Profile, tracking choices, saved options, and dashboard management consolidated under Settings.
+
+The dashboard currently calculates daily values in the React client using the existing event and observation APIs. This keeps the first analytics layer transparent and easy to extend before prediction endpoints are introduced.

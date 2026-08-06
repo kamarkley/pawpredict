@@ -8,6 +8,14 @@ import type {
   SavedOption,
 } from "../types/event";
 
+import type { StatPreference } from "../types/stats";
+
+import type {
+  ObservationPeriod,
+  ObservationPeriodCreate,
+  ObservationPeriodUpdate,
+} from "../types/observation";
+
 const API_URL = import.meta.env.VITE_API_URL;
 if (!API_URL) throw new Error("VITE_API_URL is not configured.");
 
@@ -148,4 +156,82 @@ export async function updateEvent(eventId: string, updates: EventUpdate): Promis
 export async function deleteEvent(eventId: string): Promise<void> {
   const response = await fetch(`${API_URL}/events/${eventId}`, { method: "DELETE" });
   if (!response.ok) throw await parseError(response, "Failed to delete event.");
+}
+
+export async function getObservationPeriods(
+  dogId: string,
+  startTime?: string,
+  endTime?: string,
+  activeOnly = false,
+  signal?: AbortSignal,
+): Promise<ObservationPeriod[]> {
+  const params = new URLSearchParams({ dog_id: dogId });
+  if (startTime) params.set("start_time", startTime);
+  if (endTime) params.set("end_time", endTime);
+  if (activeOnly) params.set("active_only", "true");
+  const response = await fetch(`${API_URL}/observation-periods?${params.toString()}`, { signal });
+  if (!response.ok) throw await parseError(response, "Failed to load observation periods.");
+  return response.json() as Promise<ObservationPeriod[]>;
+}
+
+export async function createObservationPeriod(
+  period: ObservationPeriodCreate,
+): Promise<ObservationPeriod> {
+  const response = await fetch(`${API_URL}/observation-periods`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(period),
+  });
+  if (!response.ok) throw await parseError(response, "Failed to create observation period.");
+  return response.json() as Promise<ObservationPeriod>;
+}
+
+export async function updateObservationPeriod(
+  periodId: string,
+  updates: ObservationPeriodUpdate,
+): Promise<ObservationPeriod> {
+  const response = await fetch(`${API_URL}/observation-periods/${periodId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!response.ok) throw await parseError(response, "Failed to update observation period.");
+  return response.json() as Promise<ObservationPeriod>;
+}
+
+export async function endObservationPeriod(periodId: string): Promise<ObservationPeriod> {
+  const response = await fetch(`${API_URL}/observation-periods/${periodId}/end`, {
+    method: "POST",
+  });
+  if (!response.ok) throw await parseError(response, "Failed to end observation period.");
+  return response.json() as Promise<ObservationPeriod>;
+}
+
+export async function deleteObservationPeriod(periodId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/observation-periods/${periodId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) throw await parseError(response, "Failed to delete observation period.");
+}
+
+export async function getStatPreferences(
+  dogId: string,
+  signal?: AbortSignal,
+): Promise<StatPreference[]> {
+  const response = await fetch(`${API_URL}/dogs/${dogId}/stat-preferences`, { signal });
+  if (!response.ok) throw await parseError(response, "Failed to load dashboard preferences.");
+  return response.json() as Promise<StatPreference[]>;
+}
+
+export async function updateStatPreferences(
+  dogId: string,
+  statCodes: string[],
+): Promise<StatPreference[]> {
+  const response = await fetch(`${API_URL}/dogs/${dogId}/stat-preferences`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stat_codes: statCodes }),
+  });
+  if (!response.ok) throw await parseError(response, "Failed to update dashboard preferences.");
+  return response.json() as Promise<StatPreference[]>;
 }

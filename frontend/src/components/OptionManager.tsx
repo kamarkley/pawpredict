@@ -3,7 +3,7 @@ import { useState } from "react";
 import { createSavedOption, updateSavedOption } from "../services/api";
 import type { SavedOption } from "../types/event";
 
-const MANAGEABLE = ["TREAT", "SLEEP_LOCATION", "MEAL_AMOUNT", "MEDICATION", "SYMPTOM", "SOCIAL_ACTIVITY", "BEHAVIOR"];
+const MANAGEABLE = ["TREAT", "POTTY_RESULT", "SLEEP_LOCATION", "MEAL_AMOUNT", "MEDICATION", "SYMPTOM", "SOCIAL_ACTIVITY", "BEHAVIOR", "GROOMING", "VET_VISIT", "OBSERVATION_REASON"];
 interface Props { dogId: string; options: SavedOption[]; onOptionsChanged: () => void; }
 
 export function OptionManager({ dogId, options, onOptionsChanged }: Props) {
