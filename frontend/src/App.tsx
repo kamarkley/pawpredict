@@ -112,7 +112,12 @@ function App() {
           />
         )}
         {dog && page === "insights" && (
-          <InsightsPage dogId={dog.id} refreshKey={timelineKey} preferenceRefreshKey={statPreferenceKey} />
+          <InsightsPage
+            dogId={dog.id}
+            dogBirthDate={dog.birth_date}
+            refreshKey={timelineKey}
+            preferenceRefreshKey={statPreferenceKey}
+          />
         )}
         {dog && page === "settings" && (
           <SettingsPage

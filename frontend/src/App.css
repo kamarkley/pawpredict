@@ -989,3 +989,69 @@
     grid-template-columns: 1fr;
   }
 }
+
+.insight-range-card {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid #e6e8ec;
+  border-radius: 1.5rem;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgba(22, 25, 31, 0.08);
+}
+
+.insight-range-heading h2 {
+  margin: 0;
+}
+
+.range-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.range-preset-row button {
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #d8dbe0;
+  border-radius: 999px;
+  color: #4d5360;
+  background: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.range-preset-row button.active {
+  border-color: #20232a;
+  color: #ffffff;
+  background: #20232a;
+}
+
+.custom-range-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.custom-range-fields input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d8dbe0;
+  border-radius: 0.75rem;
+  background: #ffffff;
+}
+
+@media (max-width: 540px) {
+  .range-preset-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .range-preset-row button {
+    padding-inline: 0.5rem;
+  }
+
+  .custom-range-fields {
+    grid-template-columns: 1fr;
+  }
+}
