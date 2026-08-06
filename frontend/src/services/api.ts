@@ -1,5 +1,10 @@
 import type { Dog } from "../types/dog";
-import type { EventType } from "../types/event";
+import type {
+  EventCreate,
+  EventType,
+  LoggedEvent,
+  TreatType,
+} from "../types/event";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -27,4 +32,40 @@ export async function getEventTypes(
   }
 
   return response.json() as Promise<EventType[]>;
+}
+
+export async function getTreatTypes(
+  signal?: AbortSignal,
+): Promise<TreatType[]> {
+  const response = await fetch(`${API_URL}/treat-types`, { signal });
+
+  if (!response.ok) {
+    throw new Error(`Failed to load treat types: ${response.status}`);
+  }
+
+  return response.json() as Promise<TreatType[]>;
+}
+
+export async function createEvent(
+  event: EventCreate,
+): Promise<LoggedEvent> {
+  const response = await fetch(`${API_URL}/events`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(event),
+  });
+
+  if (!response.ok) {
+    const errorBody = (await response.json()) as {
+      detail?: string;
+    };
+
+    throw new Error(
+      errorBody.detail ?? `Failed to save event: ${response.status}`,
+    );
+  }
+
+  return response.json() as Promise<LoggedEvent>;
 }

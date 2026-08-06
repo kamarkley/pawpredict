@@ -58,7 +58,7 @@ function App() {
       {dog && (
         <>
           <DogProfile dog={dog} />
-          <EventLogger dogName={dog.name} />
+          <EventLogger dogId={dog.id} dogName={dog.name} />
         </>
       )}
     </main>

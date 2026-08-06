@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import check_database_connection
 from app.routes.dogs import router as dogs_router
 from app.routes.event_types import router as event_types_router
+from app.routes.events import router as events_router
+from app.routes.treat_types import router as treat_types_router
 
 app = FastAPI(
     title="PawPredict API",
@@ -21,6 +23,8 @@ app.add_middleware(
 
 app.include_router(dogs_router)
 app.include_router(event_types_router)
+app.include_router(events_router)
+app.include_router(treat_types_router)
 
 @app.get("/")
 def read_root() -> dict[str, str]:
