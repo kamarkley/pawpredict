@@ -1,9 +1,20 @@
 import uuid
 from datetime import date
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
+
+DogSex = Literal["MALE", "FEMALE", "UNKNOWN"]
+
+
+class DogUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    birth_date: Optional[date] = None
+    breed: Optional[str] = Field(default=None, max_length=100)
+    sex: Optional[DogSex] = None
+    weight_lbs: Optional[Decimal] = Field(default=None, gt=0, le=999)
+    neutered: Optional[bool] = None
 
 
 class DogResponse(BaseModel):

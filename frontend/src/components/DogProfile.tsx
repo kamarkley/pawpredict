@@ -1,76 +1,59 @@
+import { useState } from "react";
+
+import { updateDog } from "../services/api";
 import type { Dog } from "../types/dog";
 
-interface DogProfileProps {
-  dog: Dog;
-}
+interface Props { dog: Dog; onDogUpdated: (dog: Dog) => void; }
 
-function formatSex(sex: string): string {
-  return sex.charAt(0) + sex.slice(1).toLowerCase();
-}
+export function DogProfile({ dog, onDogUpdated }: Props) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    name: dog.name,
+    birth_date: dog.birth_date,
+    breed: dog.breed ?? "",
+    sex: dog.sex,
+    weight_lbs: dog.weight_lbs ?? "",
+    neutered: dog.neutered === null ? "UNKNOWN" : dog.neutered ? "YES" : "NO",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-export function DogProfile({ dog }: DogProfileProps) {
+  async function save() {
+    setSaving(true); setError(null);
+    try {
+      const updated = await updateDog(dog.id, {
+        name: form.name.trim(), birth_date: form.birth_date,
+        breed: form.breed.trim() || null, sex: form.sex as Dog["sex"],
+        weight_lbs: form.weight_lbs ? Number(form.weight_lbs) : null,
+        neutered: form.neutered === "UNKNOWN" ? null : form.neutered === "YES",
+      });
+      onDogUpdated(updated); setEditing(false);
+    } catch (err) { setError(err instanceof Error ? err.message : "Could not update profile."); }
+    finally { setSaving(false); }
+  }
+
   return (
-    <section className="profile-card">
-      <div className="profile-heading">
-        <div className="profile-avatar" aria-hidden="true">
-          🐶
+    <section className="dog-profile-card">
+      <div className="section-heading"><div><p className="eyebrow">Dog profile</p><h1>{dog.name}</h1></div><button className="secondary-button" type="button" onClick={() => setEditing(!editing)}>{editing ? "Cancel" : "Edit profile"}</button></div>
+      {!editing ? (
+        <div className="profile-grid">
+          <div><span>Breed</span><strong>{dog.breed ?? "Not set"}</strong></div>
+          <div><span>Age</span><strong>{dog.age_in_weeks} weeks</strong></div>
+          <div><span>Weight</span><strong>{dog.weight_lbs ? `${dog.weight_lbs} lb` : "Not set"}</strong></div>
+          <div><span>Neutered</span><strong>{dog.neutered === null ? "Unknown" : dog.neutered ? "Yes" : "No"}</strong></div>
         </div>
-
-        <div>
-          <p className="eyebrow">Dog profile</p>
-          <h1>{dog.name}</h1>
-          <p className="profile-subtitle">
-            {dog.breed ?? "Breed not entered"}
-          </p>
+      ) : (
+        <div className="profile-edit-form">
+          {error && <p className="event-error">{error}</p>}
+          <label className="field-label">Name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+          <label className="field-label">Birth date<input type="date" value={form.birth_date} onChange={(event) => setForm({ ...form, birth_date: event.target.value })} /></label>
+          <label className="field-label">Breed<input value={form.breed} onChange={(event) => setForm({ ...form, breed: event.target.value })} /></label>
+          <label className="field-label">Sex<select value={form.sex} onChange={(event) => setForm({ ...form, sex: event.target.value as Dog["sex"] })}><option value="MALE">Male</option><option value="FEMALE">Female</option><option value="UNKNOWN">Unknown</option></select></label>
+          <label className="field-label">Weight (lb)<input type="number" min="0" step="0.1" value={form.weight_lbs} onChange={(event) => setForm({ ...form, weight_lbs: event.target.value })} /></label>
+          <label className="field-label">Neutered<select value={form.neutered} onChange={(event) => setForm({ ...form, neutered: event.target.value })}><option value="UNKNOWN">Unknown</option><option value="YES">Yes</option><option value="NO">No</option></select></label>
+          <button className="save-button full-width" disabled={saving} type="button" onClick={() => void save()}>{saving ? "Saving…" : "Save profile"}</button>
         </div>
-      </div>
-
-      <dl className="profile-grid">
-        <div>
-          <dt>Age</dt>
-          <dd>
-            {dog.age_in_weeks} weeks
-            <span>{dog.age_in_days} days</span>
-          </dd>
-        </div>
-
-        <div>
-          <dt>Birthday</dt>
-          <dd>
-            {new Date(`${dog.birth_date}T00:00:00`).toLocaleDateString(
-              "en-US",
-              {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              },
-            )}
-          </dd>
-        </div>
-
-        <div>
-          <dt>Sex</dt>
-          <dd>{formatSex(dog.sex)}</dd>
-        </div>
-
-        <div>
-          <dt>Weight</dt>
-          <dd>
-            {dog.weight_lbs ? `${dog.weight_lbs} lbs` : "Not entered"}
-          </dd>
-        </div>
-
-        <div>
-          <dt>Neutered</dt>
-          <dd>
-            {dog.neutered === null
-              ? "Not entered"
-              : dog.neutered
-                ? "Yes"
-                : "No"}
-          </dd>
-        </div>
-      </dl>
+      )}
     </section>
   );
 }
