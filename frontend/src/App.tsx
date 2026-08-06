@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import "./App.css";
 import { DogProfile } from "./components/DogProfile";
+import { EventLogger } from "./components/EventLogger";
 import { getDogs } from "./services/api";
 import type { Dog } from "./types/dog";
 
@@ -54,7 +55,12 @@ function App() {
         </div>
       )}
 
-      {dog && <DogProfile dog={dog} />}
+      {dog && (
+        <>
+          <DogProfile dog={dog} />
+          <EventLogger dogName={dog.name} />
+        </>
+      )}
     </main>
   );
 }
