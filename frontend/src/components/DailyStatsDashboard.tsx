@@ -7,6 +7,7 @@ import {
 } from "../services/api";
 import type { LoggedEvent } from "../types/event";
 import type { ObservationPeriod } from "../types/observation";
+import { InsightsCharts } from "./InsightsCharts";
 import type { StatPreference } from "../types/stats";
 
 interface Props {
@@ -14,13 +15,28 @@ interface Props {
   startTime: string;
   endTime: string;
   rangeLabel: string;
+  previousStartTime: string | null;
+  previousEndTime: string | null;
+  comparisonLabel: string | null;
   refreshKey: number;
   preferenceRefreshKey: number;
 }
 
+type ComparisonGoal = "HIGHER" | "LOWER" | "NEUTRAL";
+
+type ComparisonFormat =
+  | "COUNT"
+  | "PERCENTAGE_POINT"
+  | "MINUTES"
+  | "DISTANCE"
+  | "DECIMAL";
+
 interface StatValue {
   value: string;
   detail?: string;
+  rawValue?: number;
+  comparisonGoal?: ComparisonGoal;
+  comparisonFormat?: ComparisonFormat;
 }
 
 function count(events: LoggedEvent[], code: string): number {
@@ -50,7 +66,8 @@ function completedDuration(
   const relevant = [...events]
     .filter(
       (event) =>
-        event.event_type_code === code && event.state,
+        event.event_type_code === code &&
+        event.state,
     )
     .sort(
       (a, b) =>
@@ -90,7 +107,9 @@ function unobservedMinutes(
   const rangeEndTime = new Date(rangeEnd).getTime();
 
   return periods.reduce((total, period) => {
-    const periodStart = new Date(period.start_time).getTime();
+    const periodStart = new Date(
+      period.start_time,
+    ).getTime();
 
     const periodEnd = period.end_time
       ? new Date(period.end_time).getTime()
@@ -101,11 +120,17 @@ function unobservedMinutes(
       rangeStartTime,
     );
 
-    const clippedEnd = Math.min(periodEnd, rangeEndTime);
+    const clippedEnd = Math.min(
+      periodEnd,
+      rangeEndTime,
+    );
 
     return (
       total +
-      Math.max(0, (clippedEnd - clippedStart) / 60_000)
+      Math.max(
+        0,
+        (clippedEnd - clippedStart) / 60_000,
+      )
     );
   }, 0);
 }
@@ -118,7 +143,9 @@ function elapsedLabel(timestamp?: string): string {
   const minutes = Math.max(
     0,
     Math.floor(
-      (Date.now() - new Date(timestamp).getTime()) / 60_000,
+      (Date.now() -
+        new Date(timestamp).getTime()) /
+        60_000,
     ),
   );
 
@@ -143,33 +170,51 @@ function calculate(
   isToday: boolean,
 ): StatValue {
   const potty = events.filter((event) =>
-    ["PEE", "POOP"].includes(event.event_type_code),
+    ["PEE", "POOP"].includes(
+      event.event_type_code,
+    ),
   );
 
   switch (code) {
-    case "PEE_COUNT":
+    case "PEE_COUNT": {
+      const value = count(events, "PEE");
+
       return {
-        value: String(count(events, "PEE")),
+        value: String(value),
+        rawValue: value,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "COUNT",
         detail: "pees logged",
       };
+    }
 
-    case "POOP_COUNT":
+    case "POOP_COUNT": {
+      const value = count(events, "POOP");
+
       return {
-        value: String(count(events, "POOP")),
+        value: String(value),
+        rawValue: value,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "COUNT",
         detail: "poops logged",
       };
+    }
 
-    case "ACCIDENT_COUNT":
+    case "ACCIDENT_COUNT": {
+      const value = potty.filter(
+        (event) =>
+          event.option_name?.toLowerCase() ===
+          "accident",
+      ).length;
+
       return {
-        value: String(
-          potty.filter(
-            (event) =>
-              event.option_name?.toLowerCase() ===
-              "accident",
-          ).length,
-        ),
+        value: String(value),
+        rawValue: value,
+        comparisonGoal: "LOWER",
+        comparisonFormat: "COUNT",
         detail: "potty accidents",
       };
+    }
 
     case "POTTY_SUCCESS_RATE": {
       if (!potty.length) {
@@ -181,13 +226,19 @@ function calculate(
 
       const outside = potty.filter(
         (event) =>
-          event.option_name?.toLowerCase() === "outside",
+          event.option_name?.toLowerCase() ===
+          "outside",
       ).length;
 
+      const rate =
+        (outside / potty.length) * 100;
+
       return {
-        value: `${Math.round(
-          (outside / potty.length) * 100,
-        )}%`,
+        value: `${Math.round(rate)}%`,
+        rawValue: rate,
+        comparisonGoal: "HIGHER",
+        comparisonFormat:
+          "PERCENTAGE_POINT",
         detail: `${outside} of ${potty.length} outside`,
       };
     }
@@ -203,7 +254,8 @@ function calculate(
       return {
         value: elapsedLabel(
           events.find(
-            (event) => event.event_type_code === "PEE",
+            (event) =>
+              event.event_type_code === "PEE",
           )?.event_time,
         ),
         detail: "since latest pee",
@@ -221,40 +273,67 @@ function calculate(
       return {
         value: elapsedLabel(
           events.find(
-            (event) => event.event_type_code === "POOP",
+            (event) =>
+              event.event_type_code === "POOP",
           )?.event_time,
         ),
         detail: "since latest poop",
       };
     }
 
-    case "NAP_DURATION":
+    case "NAP_DURATION": {
+      const minutes = completedDuration(
+        events,
+        "SLEEP",
+      );
+
       return {
-        value: minutesLabel(
-          completedDuration(events, "SLEEP"),
-        ),
+        value: minutesLabel(minutes),
+        rawValue: minutes,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "MINUTES",
         detail: "completed naps",
       };
+    }
 
-    case "SLEEP_DURATION":
+    case "SLEEP_DURATION": {
+      const minutes = completedDuration(
+        events,
+        "SLEEP_NIGHT",
+      );
+
       return {
-        value: minutesLabel(
-          completedDuration(events, "SLEEP_NIGHT"),
-        ),
+        value: minutesLabel(minutes),
+        rawValue: minutes,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "MINUTES",
         detail: "completed nighttime sleep",
       };
+    }
 
-    case "MEAL_COUNT":
+    case "MEAL_COUNT": {
+      const value = count(events, "MEAL");
+
       return {
-        value: String(count(events, "MEAL")),
+        value: String(value),
+        rawValue: value,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "COUNT",
         detail: "meals logged",
       };
+    }
 
-    case "TREAT_COUNT":
+    case "TREAT_COUNT": {
+      const value = count(events, "TREAT");
+
       return {
-        value: String(count(events, "TREAT")),
+        value: String(value),
+        rawValue: value,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "COUNT",
         detail: "treats logged",
       };
+    }
 
     case "WALK_DISTANCE": {
       const walks = events.filter(
@@ -263,37 +342,60 @@ function calculate(
           event.numeric_value,
       );
 
-      const miles = walks.reduce((sum, event) => {
-        const value = Number(event.numeric_value);
+      const miles = walks.reduce(
+        (sum, event) => {
+          const value = Number(
+            event.numeric_value,
+          );
 
-        return (
-          sum +
-          (event.unit === "kilometers"
-            ? value * 0.621371
-            : value)
-        );
-      }, 0);
+          return (
+            sum +
+            (event.unit === "kilometers"
+              ? value * 0.621371
+              : value)
+          );
+        },
+        0,
+      );
 
       return {
-        value: `${miles.toFixed(miles < 10 ? 1 : 0)} mi`,
+        value: `${miles.toFixed(
+          miles < 10 ? 1 : 0,
+        )} mi`,
+        rawValue: miles,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "DISTANCE",
         detail: "logged walk distance",
       };
     }
 
-    case "SYMPTOM_COUNT":
+    case "SYMPTOM_COUNT": {
+      const value = count(
+        events,
+        "SYMPTOM",
+      );
+
       return {
-        value: String(count(events, "SYMPTOM")),
+        value: String(value),
+        rawValue: value,
+        comparisonGoal: "LOWER",
+        comparisonFormat: "COUNT",
         detail: "symptoms logged",
       };
+    }
 
     case "AVG_SYMPTOM_SEVERITY": {
       const values = events
         .filter(
           (event) =>
-            event.event_type_code === "SYMPTOM" &&
+            event.event_type_code ===
+              "SYMPTOM" &&
             event.severity,
         )
-        .map((event) => event.severity as number);
+        .map(
+          (event) =>
+            event.severity as number,
+        );
 
       if (!values.length) {
         return {
@@ -302,48 +404,290 @@ function calculate(
         };
       }
 
+      const average =
+        values.reduce(
+          (a, b) => a + b,
+          0,
+        ) / values.length;
+
       return {
-        value: `${(
-          values.reduce((a, b) => a + b, 0) /
-          values.length
-        ).toFixed(1)}/10`,
+        value: `${average.toFixed(1)}/10`,
+        rawValue: average,
+        comparisonGoal: "LOWER",
+        comparisonFormat: "DECIMAL",
         detail: "average severity",
       };
     }
 
-    case "BEHAVIOR_COUNT":
+    case "BEHAVIOR_COUNT": {
+      const value = count(
+        events,
+        "BEHAVIOR",
+      );
+
       return {
-        value: String(count(events, "BEHAVIOR")),
+        value: String(value),
+        rawValue: value,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "COUNT",
         detail: "behavior logs",
       };
+    }
 
-    case "SOCIAL_COUNT":
+    case "SOCIAL_COUNT": {
+      const value = count(
+        events,
+        "SOCIAL",
+      );
+
       return {
-        value: String(count(events, "SOCIAL")),
+        value: String(value),
+        rawValue: value,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "COUNT",
         detail: "social activities",
       };
+    }
 
-    case "MEDICATION_COUNT":
+    case "MEDICATION_COUNT": {
+      const value = count(
+        events,
+        "MEDICATION",
+      );
+
       return {
-        value: String(count(events, "MEDICATION")),
+        value: String(value),
+        rawValue: value,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "COUNT",
         detail: "medications logged",
       };
+    }
 
-    case "UNOBSERVED_TIME":
+    case "UNOBSERVED_TIME": {
+      const minutes = unobservedMinutes(
+        periods,
+        startTime,
+        endTime,
+      );
+
       return {
-        value: minutesLabel(
-          unobservedMinutes(
-            periods,
-            startTime,
-            endTime,
-          ),
-        ),
+        value: minutesLabel(minutes),
+        rawValue: minutes,
+        comparisonGoal: "NEUTRAL",
+        comparisonFormat: "MINUTES",
         detail: "not directly observed",
       };
+    }
 
     default:
-      return { value: "—" };
+      return {
+        value: "—",
+      };
   }
+}
+
+function formatComparisonAmount(
+  amount: number,
+  format: ComparisonFormat,
+): string {
+  const absolute = Math.abs(amount);
+
+  switch (format) {
+    case "PERCENTAGE_POINT":
+      return `${absolute.toFixed(0)} pp`;
+
+    case "MINUTES":
+      return minutesLabel(absolute);
+
+    case "DISTANCE":
+      return `${absolute.toFixed(1)} mi`;
+
+    case "DECIMAL":
+      return absolute.toFixed(1);
+
+    case "COUNT":
+    default:
+      return String(
+        Math.round(absolute),
+      );
+  }
+}
+
+function buildComparison(
+  current: StatValue,
+  previous: StatValue,
+  comparisonLabel: string | null,
+): {
+  text: string;
+  className: string;
+} | null {
+  if (
+    comparisonLabel === null ||
+    current.rawValue === undefined ||
+    previous.rawValue === undefined ||
+    current.comparisonFormat === undefined
+  ) {
+    return null;
+  }
+
+  const difference =
+    current.rawValue -
+    previous.rawValue;
+
+  if (Math.abs(difference) < 0.001) {
+    return {
+      text: `No change from ${comparisonLabel.toLowerCase()}`,
+      className: "comparison-neutral",
+    };
+  }
+
+  const amount = formatComparisonAmount(
+    difference,
+    current.comparisonFormat,
+  );
+
+  const arrow =
+    difference > 0 ? "↑" : "↓";
+
+  let className =
+    "comparison-neutral";
+
+  if (
+    current.comparisonGoal === "HIGHER"
+  ) {
+    className =
+      difference > 0
+        ? "comparison-positive"
+        : "comparison-negative";
+  }
+
+  if (
+    current.comparisonGoal === "LOWER"
+  ) {
+    className =
+      difference < 0
+        ? "comparison-positive"
+        : "comparison-negative";
+  }
+
+  return {
+    text: `${arrow} ${amount} vs ${comparisonLabel.toLowerCase()}`,
+    className,
+  };
+}
+
+function rangeDayCount(
+  startTime: string,
+  endTime: string,
+): number {
+  const duration =
+    new Date(endTime).getTime() -
+    new Date(startTime).getTime();
+
+  return Math.max(
+    1,
+    Math.round(
+      duration / 86_400_000,
+    ),
+  );
+}
+
+function busiestHour(
+  events: LoggedEvent[],
+): string {
+  if (!events.length) {
+    return "No activity yet";
+  }
+
+  const counts = new Map<
+    number,
+    number
+  >();
+
+  for (const event of events) {
+    const hour = new Date(
+      event.event_time,
+    ).getHours();
+
+    counts.set(
+      hour,
+      (counts.get(hour) ?? 0) + 1,
+    );
+  }
+
+  const [hour] = [
+    ...counts.entries(),
+  ].sort(
+    (a, b) => b[1] - a[1],
+  )[0];
+
+  const start = new Date();
+  start.setHours(hour, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setHours(
+    end.getHours() + 1,
+  );
+
+  const startLabel =
+    start.toLocaleTimeString(
+      "en-US",
+      {
+        hour: "numeric",
+      },
+    );
+
+  const endLabel =
+    end.toLocaleTimeString(
+      "en-US",
+      {
+        hour: "numeric",
+      },
+    );
+
+  return `${startLabel}–${endLabel}`;
+}
+
+function mostLoggedActivity(
+  events: LoggedEvent[],
+): string {
+  if (!events.length) {
+    return "No activity yet";
+  }
+
+  const counts = new Map<
+    string,
+    {
+      name: string;
+      count: number;
+    }
+  >();
+
+  for (const event of events) {
+    const existing = counts.get(
+      event.event_type_code,
+    );
+
+    counts.set(
+      event.event_type_code,
+      {
+        name:
+          event.event_type_name,
+        count:
+          (existing?.count ?? 0) +
+          1,
+      },
+    );
+  }
+
+  const result = [
+    ...counts.values(),
+  ].sort(
+    (a, b) => b.count - a.count,
+  )[0];
+
+  return `${result.name} · ${result.count}`;
 }
 
 export function DailyStatsDashboard({
@@ -351,60 +695,146 @@ export function DailyStatsDashboard({
   startTime,
   endTime,
   rangeLabel,
+  previousStartTime,
+  previousEndTime,
+  comparisonLabel,
   refreshKey,
   preferenceRefreshKey,
 }: Props) {
-  const [events, setEvents] = useState<LoggedEvent[]>([]);
-  const [periods, setPeriods] = useState<
+  const [events, setEvents] =
+    useState<LoggedEvent[]>([]);
+
+  const [periods, setPeriods] =
+    useState<ObservationPeriod[]>(
+      [],
+    );
+
+  const [
+    previousEvents,
+    setPreviousEvents,
+  ] = useState<LoggedEvent[]>([]);
+
+  const [
+    previousPeriods,
+    setPreviousPeriods,
+  ] = useState<
     ObservationPeriod[]
   >([]);
-  const [preferences, setPreferences] = useState<
+
+  const [
+    preferences,
+    setPreferences,
+  ] = useState<
     StatPreference[]
   >([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState<string | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
+    const controller =
+      new AbortController();
 
     async function load() {
       setLoading(true);
       setError(null);
 
       try {
-        const [
-          eventResults,
-          periodResults,
-          preferenceResults,
-        ] = await Promise.all([
+        const currentEventsRequest =
           getEvents(
             dogId,
             startTime,
             endTime,
             controller.signal,
-          ),
+          );
+
+        const currentPeriodsRequest =
           getObservationPeriods(
             dogId,
             startTime,
             endTime,
             false,
             controller.signal,
-          ),
-          getStatPreferences(dogId, controller.signal),
+          );
+
+        const preferencesRequest =
+          getStatPreferences(
+            dogId,
+            controller.signal,
+          );
+
+        const previousEventsRequest =
+          previousStartTime &&
+          previousEndTime
+            ? getEvents(
+                dogId,
+                previousStartTime,
+                previousEndTime,
+                controller.signal,
+              )
+            : Promise.resolve([]);
+
+        const previousPeriodsRequest =
+          previousStartTime &&
+          previousEndTime
+            ? getObservationPeriods(
+                dogId,
+                previousStartTime,
+                previousEndTime,
+                false,
+                controller.signal,
+              )
+            : Promise.resolve([]);
+
+        const [
+          eventResults,
+          periodResults,
+          preferenceResults,
+          previousEventResults,
+          previousPeriodResults,
+        ] = await Promise.all([
+          currentEventsRequest,
+          currentPeriodsRequest,
+          preferencesRequest,
+          previousEventsRequest,
+          previousPeriodsRequest,
         ]);
 
-        setEvents(eventResults);
-        setPeriods(periodResults);
-        setPreferences(preferenceResults);
+        setEvents(
+          eventResults,
+        );
+
+        setPeriods(
+          periodResults,
+        );
+
+        setPreferences(
+          preferenceResults,
+        );
+
+        setPreviousEvents(
+          previousEventResults,
+        );
+
+        setPreviousPeriods(
+          previousPeriodResults,
+        );
       } catch (err) {
         if (
           err instanceof Error &&
           err.name !== "AbortError"
         ) {
-          setError(err.message);
+          setError(
+            err.message,
+          );
         }
       } finally {
-        if (!controller.signal.aborted) {
+        if (
+          !controller.signal.aborted
+        ) {
           setLoading(false);
         }
       }
@@ -412,43 +842,82 @@ export function DailyStatsDashboard({
 
     void load();
 
-    return () => controller.abort();
+    return () =>
+      controller.abort();
   }, [
     dogId,
     startTime,
     endTime,
+    previousStartTime,
+    previousEndTime,
     refreshKey,
     preferenceRefreshKey,
   ]);
 
-  const enabled = [...preferences]
-    .filter((item) => item.is_enabled)
+  const enabled = [
+    ...preferences,
+  ]
+    .filter(
+      (item) => item.is_enabled,
+    )
     .sort(
-      (a, b) => a.display_order - b.display_order,
+      (a, b) =>
+        a.display_order -
+        b.display_order,
     );
 
   const todayRange = (() => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(
+      0,
+      0,
+      0,
+      0,
+    );
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrow =
+      new Date(today);
+
+    tomorrow.setDate(
+      tomorrow.getDate() + 1,
+    );
 
     return (
-      new Date(startTime).getTime() === today.getTime() &&
-      new Date(endTime).getTime() === tomorrow.getTime()
+      new Date(
+        startTime,
+      ).getTime() ===
+        today.getTime() &&
+      new Date(
+        endTime,
+      ).getTime() ===
+        tomorrow.getTime()
     );
   })();
+
+  const days =
+    rangeDayCount(
+      startTime,
+      endTime,
+    );
+
+  const averageEventsPerDay =
+    events.length /
+    Math.max(1, days);
 
   return (
     <section className="dashboard-section">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{rangeLabel}</p>
+          <p className="eyebrow">
+            {rangeLabel}
+          </p>
+
           <h1>Insights</h1>
+
           <p>
-            Stats reflect the selected period and only the
-            activities you have chosen to track.
+            Stats reflect the selected period
+            and only the activities you have
+            chosen to track.
           </p>
         </div>
       </div>
@@ -460,39 +929,172 @@ export function DailyStatsDashboard({
       )}
 
       {error && (
-        <p className="event-error">{error}</p>
+        <p className="event-error">
+          {error}
+        </p>
       )}
 
-      {!loading && !error && enabled.length === 0 && (
-        <div className="empty-card">
-          <p>No dashboard cards are enabled.</p>
-          <a href="#settings">Choose stats in Settings</a>
+      {!loading && !error && (
+        <div className="insight-highlights">
+          <article className="highlight-card">
+            <span>Total events</span>
+            <strong>
+              {events.length}
+            </strong>
+            <p>
+              activity logs in this period
+            </p>
+          </article>
+
+          <article className="highlight-card">
+            <span>
+              Daily average
+            </span>
+
+            <strong>
+              {averageEventsPerDay.toFixed(
+                averageEventsPerDay <
+                  10
+                  ? 1
+                  : 0,
+              )}
+            </strong>
+
+            <p>
+              events per day
+            </p>
+          </article>
+
+          <article className="highlight-card">
+            <span>
+              Busiest hour
+            </span>
+
+            <strong>
+              {busiestHour(
+                events,
+              )}
+            </strong>
+
+            <p>
+              most frequently logged window
+            </p>
+          </article>
+
+          <article className="highlight-card">
+            <span>
+              Top activity
+            </span>
+
+            <strong>
+              {mostLoggedActivity(
+                events,
+              )}
+            </strong>
+
+            <p>
+              most common event type
+            </p>
+          </article>
         </div>
       )}
 
-      <div className="stats-grid">
-        {enabled.map((preference) => {
-          const stat = calculate(
-            preference.code,
-            events,
-            periods,
-            startTime,
-            endTime,
-            todayRange,
-          );
+      {!loading &&
+        !error &&
+        enabled.length === 0 && (
+          <div className="empty-card">
+            <p>
+              No dashboard cards are enabled.
+            </p>
 
-          return (
-            <article
-              className="stat-card"
-              key={preference.code}
-            >
-              <p>{preference.display_name}</p>
-              <strong>{stat.value}</strong>
-              {stat.detail && <span>{stat.detail}</span>}
-            </article>
-          );
-        })}
+            <a href="#settings">
+              Choose stats in Settings
+            </a>
+          </div>
+        )}
+
+      <div className="stats-grid">
+        {enabled.map(
+          (preference) => {
+            const stat =
+              calculate(
+                preference.code,
+                events,
+                periods,
+                startTime,
+                endTime,
+                todayRange,
+              );
+
+            const previousStat =
+              previousStartTime &&
+              previousEndTime
+                ? calculate(
+                    preference.code,
+                    previousEvents,
+                    previousPeriods,
+                    previousStartTime,
+                    previousEndTime,
+                    false,
+                  )
+                : null;
+
+            const comparison =
+              previousStat
+                ? buildComparison(
+                    stat,
+                    previousStat,
+                    comparisonLabel,
+                  )
+                : null;
+
+            return (
+              <article
+                className="stat-card"
+                key={
+                  preference.code
+                }
+              >
+                <p>
+                  {
+                    preference.display_name
+                  }
+                </p>
+
+                <strong>
+                  {stat.value}
+                </strong>
+
+                {stat.detail && (
+                  <span>
+                    {stat.detail}
+                  </span>
+                )}
+
+                {comparison && (
+                  <small
+                    className={
+                      comparison.className
+                    }
+                  >
+                    {
+                      comparison.text
+                    }
+                  </small>
+                )}
+              </article>
+            );
+          },
+        )}
       </div>
+
+      {!loading && !error && (
+        <InsightsCharts
+          events={events}
+          startTime={startTime}
+          endTime={endTime}
+        />
+      )}
     </section>
   );
 }
