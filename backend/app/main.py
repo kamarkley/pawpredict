@@ -6,12 +6,14 @@ from app.routes.dog_event_preferences import router as preferences_router
 from app.routes.dogs import router as dogs_router
 from app.routes.event_types import router as event_types_router
 from app.routes.events import router as events_router
+from app.routes.observation_periods import router as observation_periods_router
 from app.routes.saved_options import router as saved_options_router
+from app.models.treat_type import TreatType  # noqa: F401
 
 app = FastAPI(
     title="PawPredict API",
     description="API for configurable canine behavior tracking.",
-    version="0.2.0",
+    version="0.3.0",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -23,6 +25,7 @@ app.add_middleware(
 app.include_router(dogs_router)
 app.include_router(event_types_router)
 app.include_router(events_router)
+app.include_router(observation_periods_router)
 app.include_router(saved_options_router)
 app.include_router(preferences_router)
 
