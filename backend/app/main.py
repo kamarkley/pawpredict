@@ -1,10 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+
+from app.database import check_database_connection
+from app.routes.dogs import router as dogs_router
 
 app = FastAPI(
     title="PawPredict API",
     description="API for tracking and predicting canine behavior.",
     version="0.1.0",
 )
+
+app.include_router(dogs_router)
 
 
 @app.get("/")
@@ -17,3 +22,17 @@ def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
+@app.get("/health/database")
+def database_health_check() -> dict[str, str]:
+    try:
+        check_database_connection()
+
+        return {
+            "status": "healthy",
+            "database": "connected",
+        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Database connection failed.",
+        ) from exc
