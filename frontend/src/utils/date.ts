@@ -11,6 +11,12 @@ export interface DateRange {
   label: string;
 }
 
+export interface ComparisonDateRange {
+  start: string;
+  end: string;
+  label: string;
+}
+
 function startOfLocalDay(date: Date): Date {
   const result = new Date(date);
   result.setHours(0, 0, 0, 0);
@@ -117,5 +123,39 @@ export function getInsightDateRange(
     label: `${formatDate(selectedStart)}–${formatDate(
       new Date(selectedEnd.getTime() - 1),
     )}`,
+  };
+}
+
+export function getPreviousInsightDateRange(
+  preset: InsightRangePreset,
+  currentRange: DateRange,
+): ComparisonDateRange | null {
+  if (preset === "ALL_TIME") {
+    return null;
+  }
+
+  const currentStart = new Date(currentRange.start);
+  const currentEnd = new Date(currentRange.end);
+  const duration = currentEnd.getTime() - currentStart.getTime();
+
+  const previousEnd = new Date(currentStart);
+  const previousStart = new Date(
+    previousEnd.getTime() - duration,
+  );
+
+  let label = "Previous period";
+
+  if (preset === "TODAY") {
+    label = "Yesterday";
+  } else if (preset === "LAST_7_DAYS") {
+    label = "Previous 7 days";
+  } else if (preset === "LAST_30_DAYS") {
+    label = "Previous 30 days";
+  }
+
+  return {
+    start: previousStart.toISOString(),
+    end: previousEnd.toISOString(),
+    label,
   };
 }

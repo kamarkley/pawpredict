@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
 
 import { DailyStatsDashboard } from "../components/DailyStatsDashboard";
-import type { InsightRangePreset } from "../utils/date";
-import { getInsightDateRange } from "../utils/date";
+import {
+  getInsightDateRange,
+  getPreviousInsightDateRange,
+  type InsightRangePreset,
+} from "../utils/date";
 
 interface Props {
   dogId: string;
@@ -43,6 +46,11 @@ export function InsightsPage({
         customEnd,
       ),
     [preset, dogBirthDate, customStart, customEnd],
+  );
+
+  const comparisonRange = useMemo(
+    () => getPreviousInsightDateRange(preset, range),
+    [preset, range],
   );
 
   const customRangeInvalid =
@@ -152,6 +160,9 @@ export function InsightsPage({
           startTime={range.start}
           endTime={range.end}
           rangeLabel={range.label}
+          previousStartTime={comparisonRange?.start ?? null}
+          previousEndTime={comparisonRange?.end ?? null}
+          comparisonLabel={comparisonRange?.label ?? null}
           refreshKey={refreshKey}
           preferenceRefreshKey={preferenceRefreshKey}
         />
