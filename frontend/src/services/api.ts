@@ -11,6 +11,12 @@ import type {
 import type { StatPreference } from "../types/stats";
 
 import type {
+  ChartPreference,
+  ChartPreferenceUpdate,
+  UIPreference,
+} from "../types/dashboard";
+
+import type {
   ObservationPeriod,
   ObservationPeriodCreate,
   ObservationPeriodUpdate,
@@ -234,4 +240,84 @@ export async function updateStatPreferences(
   });
   if (!response.ok) throw await parseError(response, "Failed to update dashboard preferences.");
   return response.json() as Promise<StatPreference[]>;
+}
+
+export async function getChartPreferences(
+  dogId: string,
+  signal?: AbortSignal,
+): Promise<ChartPreference[]> {
+  const response = await fetch(
+    `${API_URL}/dogs/${dogId}/chart-preferences`,
+    { signal },
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not load chart preferences.");
+  }
+
+  return response.json();
+}
+
+export async function updateChartPreferences(
+  dogId: string,
+  preferences: ChartPreferenceUpdate[],
+): Promise<ChartPreference[]> {
+  const response = await fetch(
+    `${API_URL}/dogs/${dogId}/chart-preferences`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        preferences,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not update chart preferences.");
+  }
+
+  return response.json();
+}
+
+export async function getUIPreferences(
+  dogId: string,
+  signal?: AbortSignal,
+): Promise<UIPreference> {
+  const response = await fetch(
+    `${API_URL}/dogs/${dogId}/ui-preferences`,
+    { signal },
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not load appearance preferences.");
+  }
+
+  return response.json();
+}
+
+export async function updateUIPreferences(
+  dogId: string,
+  accentColor: string,
+): Promise<UIPreference> {
+  const response = await fetch(
+    `${API_URL}/dogs/${dogId}/ui-preferences`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        accent_color: accentColor,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not update appearance preferences.");
+  }
+
+  return response.json();
 }

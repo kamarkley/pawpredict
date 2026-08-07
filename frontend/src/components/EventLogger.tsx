@@ -7,7 +7,7 @@ import { EventFields, type EventFieldValues } from "./EventFields";
 const ICONS: Record<string, string> = {
   PEE: "💧", POOP: "💩", POTTY_ATTEMPT: "🚪", MEAL: "🍽️", WATER: "🥤",
   TREAT: "🦴", SLEEP: "😴", SLEEP_NIGHT: "🌙", PLAY: "🎾", TRAINING: "⭐",
-  ZOOMIES: "⚡", MEDICATION: "💊", WALK: "🦮", SYMPTOM: "🩺", SOCIAL: "🐕",
+  ZOOMIES: "⚡", BATH: "🛁", MEDICATION: "💊", WALK: "🦮", SYMPTOM: "🩺", SOCIAL: "🐕",
   BEHAVIOR: "🧠", GROOMING: "🛁", VET_VISIT: "🏥",
 };
 

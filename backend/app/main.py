@@ -3,6 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import check_database_connection
 from app.models.treat_type import TreatType  # noqa: F401
+from app.models.chart_preference import (  # noqa: F401
+    ChartType,
+    DogChartPreference,
+)
+from app.models.ui_preference import DogUIPreference  # noqa: F401
+from app.routes.dashboard_preferences import (
+    router as dashboard_preferences_router,
+)
 from app.routes.dog_event_preferences import router as preferences_router
 from app.routes.dog_stat_preferences import router as stat_preferences_router
 from app.routes.dogs import router as dogs_router
@@ -33,6 +41,7 @@ app.include_router(observation_periods_router)
 app.include_router(saved_options_router)
 app.include_router(preferences_router)
 app.include_router(stat_preferences_router)
+app.include_router(dashboard_preferences_router)
 
 
 @app.get("/")

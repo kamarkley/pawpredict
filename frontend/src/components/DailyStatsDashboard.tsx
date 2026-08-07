@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 
 import {
+  getChartPreferences,
   getEvents,
   getObservationPeriods,
   getStatPreferences,
+  getUIPreferences,
 } from "../services/api";
 import type { LoggedEvent } from "../types/event";
 import type { ObservationPeriod } from "../types/observation";
 import { InsightsCharts } from "./InsightsCharts";
 import type { StatPreference } from "../types/stats";
+import type { ChartPreference } from "../types/dashboard";
 
 interface Props {
   dogId: string;
@@ -159,6 +162,81 @@ function elapsedLabel(timestamp?: string): string {
   return remainder
     ? `${hours} hr ${remainder} min`
     : `${hours} hr`;
+}
+
+function typicalTimeOfDay(
+  events: LoggedEvent[],
+  eventCode: "PEE" | "POOP",
+): string {
+  const relevant = events.filter(
+    (event) => event.event_type_code === eventCode,
+  );
+
+  if (!relevant.length) {
+    return "—";
+  }
+
+  let x = 0;
+  let y = 0;
+
+  for (const event of relevant) {
+    const date = new Date(event.event_time);
+
+    const minutes =
+      date.getHours() * 60 +
+      date.getMinutes();
+
+    const angle =
+      (minutes / 1440) *
+      Math.PI *
+      2;
+
+    x += Math.cos(angle);
+    y += Math.sin(angle);
+  }
+
+  const averageAngle =
+    Math.atan2(
+      y / relevant.length,
+      x / relevant.length,
+    );
+
+  const normalizedAngle =
+    averageAngle < 0
+      ? averageAngle + Math.PI * 2
+      : averageAngle;
+
+  const averageMinutes =
+    Math.round(
+      (normalizedAngle /
+        (Math.PI * 2)) *
+        1440,
+    ) % 1440;
+
+  const hours =
+    Math.floor(
+      averageMinutes / 60,
+    );
+
+  const minutes =
+    averageMinutes % 60;
+
+  const date = new Date();
+
+  date.setHours(
+    hours,
+    minutes,
+    0,
+    0,
+  );
+
+  return date.toLocaleTimeString(
+    "en-US",
+    {
+      hour: "numeric",
+      minute: "2-digit",
+    },
+  );
 }
 
 function calculate(
@@ -731,6 +809,9 @@ export function DailyStatsDashboard({
   const [loading, setLoading] =
     useState(true);
 
+  const [chartPreferences, setChartPreferences] =
+    useState<ChartPreference[]>([]);
+
   const [error, setError] =
     useState<string | null>(null);
 
@@ -795,12 +876,24 @@ export function DailyStatsDashboard({
           preferenceResults,
           previousEventResults,
           previousPeriodResults,
+          chartPreferenceResults,
+          uiPreferenceResults,
         ] = await Promise.all([
           currentEventsRequest,
           currentPeriodsRequest,
           preferencesRequest,
           previousEventsRequest,
           previousPeriodsRequest,
+
+          getChartPreferences(
+            dogId,
+            controller.signal,
+          ),
+
+          getUIPreferences(
+            dogId,
+            controller.signal,
+          ),
         ]);
 
         setEvents(
@@ -822,6 +915,16 @@ export function DailyStatsDashboard({
         setPreviousPeriods(
           previousPeriodResults,
         );
+
+        setChartPreferences(
+          chartPreferenceResults,
+        );
+
+        document.documentElement.style.setProperty(
+          "--paw-accent",
+          uiPreferenceResults.accent_color,
+        );    
+      
       } catch (err) {
         if (
           err instanceof Error &&
@@ -967,6 +1070,40 @@ export function DailyStatsDashboard({
 
           <article className="highlight-card">
             <span>
+              Typical pee time
+            </span>
+
+            <strong>
+              {typicalTimeOfDay(
+                events,
+                "PEE",
+              )}
+            </strong>
+
+            <p>
+              average logged time of day
+            </p>
+          </article>
+
+          <article className="highlight-card">
+            <span>
+              Typical poop time
+            </span>
+
+            <strong>
+              {typicalTimeOfDay(
+                events,
+                "POOP",
+              )}
+            </strong>
+
+            <p>
+              average logged time of day
+            </p>
+          </article>
+
+          <article className="highlight-card">
+            <span>
               Busiest hour
             </span>
 
@@ -1093,6 +1230,7 @@ export function DailyStatsDashboard({
           events={events}
           startTime={startTime}
           endTime={endTime}
+          chartPreferences={chartPreferences}
         />
       )}
     </section>

@@ -167,6 +167,6 @@ env/
 
 # Local data and model artifacts
 data/
-models/
+/models/
 *.pkl
 *.joblib

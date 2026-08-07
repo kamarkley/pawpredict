@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { getStatPreferences, updateStatPreferences } from "../services/api";
 import type { StatPreference } from "../types/stats";
+import { DashboardCustomization } from "../components/DashboardCustomization";
 
 interface Props {
   dogId: string;
@@ -62,32 +63,96 @@ export function StatSettings({ dogId, refreshKey, onChanged }: Props) {
   const ordered = [...preferences].sort((a, b) => a.display_order - b.display_order);
 
   return (
-    <section className="settings-card settings-section">
-      <div className="settings-section-heading">
-        <div>
-          <p className="eyebrow">Dashboard</p>
-          <h2>Choose daily stats</h2>
-          <p>Select the cards shown on Insights and arrange their order.</p>
-        </div>
-      </div>
-      {error && <p className="event-error">{error}</p>}
-      <div className="stat-preference-list">
-        {ordered.map((item, index) => (
-          <div className="stat-preference-row" key={item.code}>
-            <label>
-              <input type="checkbox" checked={item.is_enabled} onChange={() => toggle(item.code)} />
-              <span><strong>{item.display_name}</strong><small>{item.description}</small></span>
-            </label>
-            <div className="reorder-actions">
-              <button type="button" disabled={index === 0} onClick={() => move(item.code, -1)} aria-label={`Move ${item.display_name} up`}>↑</button>
-              <button type="button" disabled={index === ordered.length - 1} onClick={() => move(item.code, 1)} aria-label={`Move ${item.display_name} down`}>↓</button>
-            </div>
+    <>
+      <section className="settings-card settings-section">
+        <div className="settings-section-heading">
+          <div>
+            <p className="eyebrow">Dashboard</p>
+            <h2>Choose daily stats</h2>
+            <p>
+              Select the cards shown on Insights and arrange their order.
+            </p>
           </div>
-        ))}
-      </div>
-      <button className="save-button full-width" disabled={saving} type="button" onClick={() => void save()}>
-        {saving ? "Saving…" : "Save dashboard choices"}
-      </button>
-    </section>
+        </div>
+
+        {error && (
+          <p className="event-error">
+            {error}
+          </p>
+        )}
+
+        <div className="stat-preference-list">
+          {ordered.map((item, index) => (
+            <div
+              className="stat-preference-row"
+              key={item.code}
+            >
+              <label>
+                <input
+                  type="checkbox"
+                  checked={item.is_enabled}
+                  onChange={() =>
+                    toggle(item.code)
+                  }
+                />
+
+                <span>
+                  <strong>
+                    {item.display_name}
+                  </strong>
+
+                  <small>
+                    {item.description}
+                  </small>
+                </span>
+              </label>
+
+              <div className="reorder-actions">
+                <button
+                  type="button"
+                  disabled={index === 0}
+                  onClick={() =>
+                    move(item.code, -1)
+                  }
+                  aria-label={`Move ${item.display_name} up`}
+                >
+                  ↑
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    index ===
+                    ordered.length - 1
+                  }
+                  onClick={() =>
+                    move(item.code, 1)
+                  }
+                  aria-label={`Move ${item.display_name} down`}
+                >
+                  ↓
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          className="save-button full-width"
+          disabled={saving}
+          type="button"
+          onClick={() => void save()}
+        >
+          {saving
+            ? "Saving…"
+            : "Save dashboard choices"}
+        </button>
+      </section>
+
+      <DashboardCustomization
+        dogId={dogId}
+        onPreferencesChanged={onChanged}
+      />
+    </>
   );
 }
