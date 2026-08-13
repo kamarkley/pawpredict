@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 
 import "./App.css";
+import { CalendarPage } from "./pages/CalendarPage";
 import { InsightsPage } from "./pages/InsightsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TodayPage } from "./pages/TodayPage";
-import { getDogs, getEventTypes, getSavedOptions } from "./services/api";
+import { getDogs, getEventTypes, getSavedOptions, getUIPreferences } from "./services/api";
 import type { Dog } from "./types/dog";
 import type { EventType, SavedOption } from "./types/event";
 
-type Page = "today" | "insights" | "settings";
+type Page = "today" | "calendar" | "insights" | "settings";
 
 function pageFromHash(): Page {
   const value = window.location.hash.replace("#", "");
-  return value === "insights" || value === "settings" ? value : "today";
+  return value === "calendar" || value === "insights" || value === "settings" ? value : "today";
 }
 
 function App() {
@@ -59,6 +60,9 @@ function App() {
         setEventTypes(types);
         setAllEventTypes(allTypes);
         setOptions(saved);
+        getUIPreferences(currentDog.id, controller.signal).then((ui) => {
+          document.documentElement.style.setProperty("--paw-accent", ui.accent_color);
+        }).catch(() => undefined);
       } catch (err) {
         if (err instanceof Error && err.name !== "AbortError") setError(err.message);
       } finally {
@@ -91,6 +95,7 @@ function App() {
 
       <nav className="app-nav" aria-label="Primary navigation">
         <a className={page === "today" ? "active" : ""} href="#today"><span>⌂</span>Today</a>
+        <a className={page === "calendar" ? "active" : ""} href="#calendar"><span>◫</span>Calendar</a>
         <a className={page === "insights" ? "active" : ""} href="#insights"><span>▥</span>Insights</a>
         <a className={page === "settings" ? "active" : ""} href="#settings"><span>⚙</span>Settings</a>
       </nav>
@@ -110,6 +115,9 @@ function App() {
             onObservationChanged={refreshObservations}
             onOptionCreated={saveOption}
           />
+        )}
+        {dog && page === "calendar" && (
+          <CalendarPage dogId={dog.id} dogName={dog.name} refreshKey={timelineKey + observationKey} />
         )}
         {dog && page === "insights" && (
           <InsightsPage

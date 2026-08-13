@@ -11,6 +11,11 @@ class ObservationPeriodCreate(BaseModel):
     end_time: Optional[datetime] = None
     reason_option_id: uuid.UUID
     notes: Optional[str] = Field(default=None, max_length=500)
+    peed_during: Optional[bool] = None
+    pooped_during: Optional[bool] = None
+    potty_location: Optional[str] = Field(default=None, max_length=80)
+    likely_state: Optional[str] = None
+    camera_checked: bool = False
 
     @model_validator(mode="after")
     def validate_range(self) -> "ObservationPeriodCreate":
@@ -24,6 +29,11 @@ class ObservationPeriodUpdate(BaseModel):
     end_time: Optional[datetime] = None
     reason_option_id: Optional[uuid.UUID] = None
     notes: Optional[str] = Field(default=None, max_length=500)
+    peed_during: Optional[bool] = None
+    pooped_during: Optional[bool] = None
+    potty_location: Optional[str] = Field(default=None, max_length=80)
+    likely_state: Optional[str] = None
+    camera_checked: Optional[bool] = None
 
 
 class ObservationPeriodResponse(BaseModel):
@@ -35,4 +45,9 @@ class ObservationPeriodResponse(BaseModel):
     reason_option_id: Optional[uuid.UUID]
     reason_name: Optional[str]
     notes: Optional[str]
+    peed_during: Optional[bool]
+    pooped_during: Optional[bool]
+    potty_location: Optional[str]
+    likely_state: Optional[str]
+    camera_checked: bool
     created_at: datetime

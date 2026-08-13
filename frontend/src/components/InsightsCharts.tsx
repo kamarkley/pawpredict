@@ -19,6 +19,7 @@ interface Props {
   startTime: string;
   endTime: string;
   chartPreferences: ChartPreference[];
+  sessionEvents: LoggedEvent[];
 }
 
 interface DailyActivityPoint {
@@ -324,79 +325,34 @@ function buildAccidentTrend(
 function calculateDailySleep(
   events: LoggedEvent[],
   code: string,
+  startTime: string,
+  endTime: string,
 ): Map<string, number> {
-  const relevant = [
-    ...events,
-  ]
-    .filter(
-      (event) =>
-        event.event_type_code ===
-          code &&
-        event.state,
-    )
-    .sort(
-      (a, b) =>
-        new Date(
-          a.event_time,
-        ).getTime() -
-        new Date(
-          b.event_time,
-        ).getTime(),
-    );
-
-  const totals =
-    new Map<string, number>();
-
-  let startEvent:
-    | LoggedEvent
-    | null = null;
+  const relevant = [...events]
+    .filter((event) => event.event_type_code === code && event.state)
+    .sort((a, b) => new Date(a.event_time).getTime() - new Date(b.event_time).getTime());
+  const totals = new Map<string, number>();
+  const rangeStart = new Date(startTime);
+  const rangeEnd = new Date(endTime);
+  let sessionStart: Date | null = null;
 
   for (const event of relevant) {
-    if (
-      event.state === "START"
-    ) {
-      startEvent = event;
-      continue;
+    if (event.state === "START") { sessionStart = new Date(event.event_time); continue; }
+    if (event.state !== "END" || !sessionStart) continue;
+    const sessionEnd = new Date(event.event_time);
+    let cursor = new Date(Math.max(sessionStart.getTime(), rangeStart.getTime()));
+    const clippedEnd = new Date(Math.min(sessionEnd.getTime(), rangeEnd.getTime()));
+    while (cursor < clippedEnd) {
+      const nextMidnight = new Date(cursor);
+      nextMidnight.setHours(24, 0, 0, 0);
+      const chunkEnd = new Date(Math.min(nextMidnight.getTime(), clippedEnd.getTime()));
+      const key = dateKey(cursor.toISOString());
+      const hours = (chunkEnd.getTime() - cursor.getTime()) / 3_600_000;
+      totals.set(key, (totals.get(key) ?? 0) + Math.max(0, hours));
+      cursor = chunkEnd;
     }
-
-    if (
-      event.state === "END" &&
-      startEvent
-    ) {
-      const start =
-        new Date(
-          startEvent.event_time,
-        );
-
-      const end =
-        new Date(
-          event.event_time,
-        );
-
-      const hours = Math.max(
-        0,
-        (
-          end.getTime() -
-          start.getTime()
-        ) /
-          3_600_000,
-      );
-
-      const key =
-        dateKey(
-          startEvent.event_time,
-        );
-
-      totals.set(
-        key,
-        (totals.get(key) ?? 0) +
-          hours,
-      );
-
-      startEvent = null;
-    }
+    sessionStart = null;
   }
-
   return totals;
 }
 
@@ -405,36 +361,12 @@ function buildSleepData(
   startTime: string,
   endTime: string,
 ): SleepPoint[] {
-  const naps =
-    calculateDailySleep(
-      events,
-      "SLEEP",
-    );
-
-  const nighttime =
-    calculateDailySleep(
-      events,
-      "SLEEP_NIGHT",
-    );
-
-  return getDatesInRange(
-    startTime,
-    endTime,
-  ).map((date) => ({
+  const naps = calculateDailySleep(events, "SLEEP", startTime, endTime);
+  const nighttime = calculateDailySleep(events, "SLEEP_NIGHT", startTime, endTime);
+  return getDatesInRange(startTime, endTime).map((date) => ({
     date: displayDate(date),
-
-    naps: Number(
-      (
-        naps.get(date) ?? 0
-      ).toFixed(2),
-    ),
-
-    nighttime: Number(
-      (
-        nighttime.get(date) ??
-        0
-      ).toFixed(2),
-    ),
+    naps: Number((naps.get(date) ?? 0).toFixed(2)),
+    nighttime: Number((nighttime.get(date) ?? 0).toFixed(2)),
   }));
 }
 
@@ -767,6 +699,7 @@ export function InsightsCharts({
   startTime,
   endTime,
   chartPreferences,
+  sessionEvents,
 }: Props) {
   const enabled =
     [...chartPreferences]
@@ -806,14 +739,14 @@ export function InsightsCharts({
 
   const sleepData =
     buildSleepData(
-      events,
+      sessionEvents,
       startTime,
       endTime,
     );
 
   const napData =
     buildAverageNapData(
-      events,
+      sessionEvents,
       startTime,
       endTime,
     );

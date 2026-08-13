@@ -9,26 +9,14 @@
 -- ------------------------------------------------------------
 
 INSERT INTO event_types (
-    code,
-    display_name,
-    icon,
-    supports_state,
-    option_required,
-    numeric_required,
-    severity_required,
-    allowed_units,
-    is_active
+    code, display_name, category, supports_state, supports_location, supports_treat,
+    is_active, option_category, option_required, supports_numeric, numeric_label,
+    numeric_required, allowed_units, supports_severity, severity_required, start_label,
+    end_label, default_enabled
 )
 VALUES (
-    'BATH',
-    'Bath',
-    '🛁',
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    ARRAY[]::TEXT[],
-    TRUE
+    'BATH', 'Bath', 'CARE', FALSE, FALSE, FALSE, TRUE, NULL, FALSE, FALSE, NULL,
+    FALSE, ARRAY[]::TEXT[], FALSE, FALSE, NULL, NULL, TRUE
 )
 ON CONFLICT (code) DO NOTHING;
 

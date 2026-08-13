@@ -65,39 +65,26 @@ function minutesLabel(totalMinutes: number): string {
 function completedDuration(
   events: LoggedEvent[],
   code: string,
+  rangeStart: string,
+  rangeEnd: string,
 ): number {
   const relevant = [...events]
-    .filter(
-      (event) =>
-        event.event_type_code === code &&
-        event.state,
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.event_time).getTime() -
-        new Date(b.event_time).getTime(),
-    );
-
-  let start: Date | null = null;
+    .filter((event) => event.event_type_code === code && event.state)
+    .sort((a, b) => new Date(a.event_time).getTime() - new Date(b.event_time).getTime());
+  const clipStart = new Date(rangeStart).getTime();
+  const clipEnd = new Date(rangeEnd).getTime();
+  let startTime: number | null = null;
   let minutes = 0;
-
   for (const event of relevant) {
-    if (event.state === "START") {
-      start = new Date(event.event_time);
-    }
-
-    if (event.state === "END" && start) {
-      minutes += Math.max(
-        0,
-        (new Date(event.event_time).getTime() -
-          start.getTime()) /
-          60_000,
-      );
-
-      start = null;
+    const t = new Date(event.event_time).getTime();
+    if (event.state === "START") startTime = t;
+    if (event.state === "END" && startTime !== null) {
+      const overlapStart = Math.max(startTime, clipStart);
+      const overlapEnd = Math.min(t, clipEnd);
+      if (overlapEnd > overlapStart) minutes += (overlapEnd - overlapStart) / 60_000;
+      startTime = null;
     }
   }
-
   return minutes;
 }
 
@@ -246,6 +233,7 @@ function calculate(
   startTime: string,
   endTime: string,
   isToday: boolean,
+  sessionEvents: LoggedEvent[] = events,
 ): StatValue {
   const potty = events.filter((event) =>
     ["PEE", "POOP"].includes(
@@ -262,7 +250,7 @@ function calculate(
         rawValue: value,
         comparisonGoal: "NEUTRAL",
         comparisonFormat: "COUNT",
-        detail: "pees logged",
+        detail: isToday ? "pees today" : "total pees in range",
       };
     }
 
@@ -274,7 +262,7 @@ function calculate(
         rawValue: value,
         comparisonGoal: "NEUTRAL",
         comparisonFormat: "COUNT",
-        detail: "poops logged",
+        detail: isToday ? "poops today" : "total poops in range",
       };
     }
 
@@ -290,7 +278,7 @@ function calculate(
         rawValue: value,
         comparisonGoal: "LOWER",
         comparisonFormat: "COUNT",
-        detail: "potty accidents",
+        detail: isToday ? "accidents today" : "accidents in range",
       };
     }
 
@@ -361,8 +349,10 @@ function calculate(
 
     case "NAP_DURATION": {
       const minutes = completedDuration(
-        events,
+        sessionEvents,
         "SLEEP",
+        startTime,
+        endTime,
       );
 
       return {
@@ -370,14 +360,16 @@ function calculate(
         rawValue: minutes,
         comparisonGoal: "NEUTRAL",
         comparisonFormat: "MINUTES",
-        detail: "completed naps",
+        detail: isToday ? "nap time today" : "nap time in range",
       };
     }
 
     case "SLEEP_DURATION": {
       const minutes = completedDuration(
-        events,
+        sessionEvents,
         "SLEEP_NIGHT",
+        startTime,
+        endTime,
       );
 
       return {
@@ -385,7 +377,7 @@ function calculate(
         rawValue: minutes,
         comparisonGoal: "NEUTRAL",
         comparisonFormat: "MINUTES",
-        detail: "completed nighttime sleep",
+        detail: isToday ? "night sleep today" : "night sleep in range",
       };
     }
 
@@ -782,6 +774,9 @@ export function DailyStatsDashboard({
   const [events, setEvents] =
     useState<LoggedEvent[]>([]);
 
+  const [sessionEvents, setSessionEvents] = useState<LoggedEvent[]>([]);
+  const [previousSessionEvents, setPreviousSessionEvents] = useState<LoggedEvent[]>([]);
+
   const [periods, setPeriods] =
     useState<ObservationPeriod[]>(
       [],
@@ -870,6 +865,13 @@ export function DailyStatsDashboard({
               )
             : Promise.resolve([]);
 
+
+        const sessionStart = new Date(new Date(startTime).getTime() - 36 * 60 * 60 * 1000).toISOString();
+        const sessionEventsRequest = getEvents(dogId, sessionStart, endTime, controller.signal);
+        const previousSessionEventsRequest = previousStartTime && previousEndTime
+          ? getEvents(dogId, new Date(new Date(previousStartTime).getTime() - 36 * 60 * 60 * 1000).toISOString(), previousEndTime, controller.signal)
+          : Promise.resolve([]);
+
         const [
           eventResults,
           periodResults,
@@ -878,6 +880,8 @@ export function DailyStatsDashboard({
           previousPeriodResults,
           chartPreferenceResults,
           uiPreferenceResults,
+          sessionEventResults,
+          previousSessionEventResults,
         ] = await Promise.all([
           currentEventsRequest,
           currentPeriodsRequest,
@@ -894,6 +898,8 @@ export function DailyStatsDashboard({
             dogId,
             controller.signal,
           ),
+          sessionEventsRequest,
+          previousSessionEventsRequest,
         ]);
 
         setEvents(
@@ -915,6 +921,8 @@ export function DailyStatsDashboard({
         setPreviousPeriods(
           previousPeriodResults,
         );
+        setSessionEvents(sessionEventResults);
+        setPreviousSessionEvents(previousSessionEventResults);
 
         setChartPreferences(
           chartPreferenceResults,
@@ -1006,6 +1014,11 @@ export function DailyStatsDashboard({
   const averageEventsPerDay =
     events.length /
     Math.max(1, days);
+
+  const rangeMinutes = Math.max(1, (new Date(endTime).getTime() - new Date(startTime).getTime()) / 60_000);
+  const unobserved = unobservedMinutes(periods, startTime, endTime);
+  const observedPercent = Math.max(0, Math.min(100, ((rangeMinutes - unobserved) / rangeMinutes) * 100));
+  const intervalPottyEvidence = periods.filter((period) => period.peed_during || period.pooped_during).length;
 
   return (
     <section className="dashboard-section">
@@ -1133,6 +1146,18 @@ export function DailyStatsDashboard({
               most common event type
             </p>
           </article>
+
+          <article className="highlight-card">
+            <span>Observed coverage</span>
+            <strong>{observedPercent.toFixed(0)}%</strong>
+            <p>of this range has direct observation</p>
+          </article>
+
+          <article className="highlight-card">
+            <span>Interval potty evidence</span>
+            <strong>{intervalPottyEvidence}</strong>
+            <p>unobserved windows with known pee/poop</p>
+          </article>
         </div>
       )}
 
@@ -1161,6 +1186,7 @@ export function DailyStatsDashboard({
                 startTime,
                 endTime,
                 todayRange,
+                sessionEvents,
               );
 
             const previousStat =
@@ -1173,6 +1199,7 @@ export function DailyStatsDashboard({
                     previousStartTime,
                     previousEndTime,
                     false,
+                    previousSessionEvents,
                   )
                 : null;
 
@@ -1231,6 +1258,7 @@ export function DailyStatsDashboard({
           startTime={startTime}
           endTime={endTime}
           chartPreferences={chartPreferences}
+          sessionEvents={sessionEvents}
         />
       )}
     </section>

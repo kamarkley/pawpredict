@@ -7,6 +7,11 @@ export interface ObservationPeriod {
   reason_option_id: string | null;
   reason_name: string | null;
   notes: string | null;
+  peed_during: boolean | null;
+  pooped_during: boolean | null;
+  potty_location: string | null;
+  likely_state: "SLEEPING" | "AWAKE" | "MIXED" | "UNKNOWN" | null;
+  camera_checked: boolean;
   created_at: string;
 }
 
@@ -16,6 +21,11 @@ export interface ObservationPeriodCreate {
   end_time?: string | null;
   reason_option_id: string;
   notes?: string | null;
+  peed_during?: boolean | null;
+  pooped_during?: boolean | null;
+  potty_location?: string | null;
+  likely_state?: "SLEEPING" | "AWAKE" | "MIXED" | "UNKNOWN" | null;
+  camera_checked?: boolean;
 }
 
 export interface ObservationPeriodUpdate {
@@ -23,4 +33,9 @@ export interface ObservationPeriodUpdate {
   end_time?: string | null;
   reason_option_id?: string;
   notes?: string | null;
+  peed_during?: boolean | null;
+  pooped_during?: boolean | null;
+  potty_location?: string | null;
+  likely_state?: "SLEEPING" | "AWAKE" | "MIXED" | "UNKNOWN" | null;
+  camera_checked?: boolean;
 }

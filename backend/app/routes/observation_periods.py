@@ -33,6 +33,11 @@ def build_response(
         reason_option_id=period.reason_option_id,
         reason_name=option.name if option else period.reason,
         notes=period.notes,
+        peed_during=period.peed_during,
+        pooped_during=period.pooped_during,
+        potty_location=period.potty_location,
+        likely_state=period.likely_state,
+        camera_checked=period.camera_checked,
         created_at=period.created_at,
     )
 
@@ -99,6 +104,11 @@ def create_period(
         reason=option.name,
         reason_option_id=option.id,
         notes=data.notes,
+        peed_during=data.peed_during,
+        pooped_during=data.pooped_during,
+        potty_location=data.potty_location,
+        likely_state=data.likely_state,
+        camera_checked=data.camera_checked,
         created_at=now,
         updated_at=now,
     )

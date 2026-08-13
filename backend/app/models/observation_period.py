@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,5 +39,10 @@ class ObservationPeriod(Base):
         nullable=True,
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    peed_during: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    pooped_during: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    potty_location: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    likely_state: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    camera_checked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

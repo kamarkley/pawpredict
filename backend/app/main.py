@@ -8,6 +8,7 @@ from app.models.chart_preference import (  # noqa: F401
     DogChartPreference,
 )
 from app.models.ui_preference import DogUIPreference  # noqa: F401
+from app.models.scheduled_item import ScheduledItem  # noqa: F401
 from app.routes.dashboard_preferences import (
     router as dashboard_preferences_router,
 )
@@ -18,11 +19,12 @@ from app.routes.event_types import router as event_types_router
 from app.routes.events import router as events_router
 from app.routes.observation_periods import router as observation_periods_router
 from app.routes.saved_options import router as saved_options_router
+from app.routes.scheduled_items import router as scheduled_items_router
 
 app = FastAPI(
     title="PawPredict API",
     description="API for configurable canine behavior tracking.",
-    version="0.3.0",
+    version="0.4.0",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -42,6 +44,7 @@ app.include_router(saved_options_router)
 app.include_router(preferences_router)
 app.include_router(stat_preferences_router)
 app.include_router(dashboard_preferences_router)
+app.include_router(scheduled_items_router)
 
 
 @app.get("/")

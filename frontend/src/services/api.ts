@@ -21,6 +21,7 @@ import type {
   ObservationPeriodCreate,
   ObservationPeriodUpdate,
 } from "../types/observation";
+import type { ScheduledItem, ScheduledItemCreate } from "../types/schedule";
 
 const API_URL = import.meta.env.VITE_API_URL;
 if (!API_URL) throw new Error("VITE_API_URL is not configured.");
@@ -320,4 +321,42 @@ export async function updateUIPreferences(
   }
 
   return response.json();
+}
+
+export async function getScheduledItems(
+  dogId: string,
+  startTime?: string,
+  endTime?: string,
+  signal?: AbortSignal,
+): Promise<ScheduledItem[]> {
+  const params = new URLSearchParams({ dog_id: dogId });
+  if (startTime) params.set("start_time", startTime);
+  if (endTime) params.set("end_time", endTime);
+  const response = await fetch(`${API_URL}/scheduled-items?${params.toString()}`, { signal });
+  if (!response.ok) throw new Error("Could not load calendar items.");
+  return response.json();
+}
+
+export async function createScheduledItem(data: ScheduledItemCreate): Promise<ScheduledItem> {
+  const response = await fetch(`${API_URL}/scheduled-items`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error("Could not add calendar item.");
+  return response.json();
+}
+
+export async function updateScheduledItem(
+  itemId: string,
+  updates: Partial<Omit<ScheduledItemCreate, "dog_id">> & { is_completed?: boolean },
+): Promise<ScheduledItem> {
+  const response = await fetch(`${API_URL}/scheduled-items/${itemId}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates),
+  });
+  if (!response.ok) throw new Error("Could not update calendar item.");
+  return response.json();
+}
+
+export async function deleteScheduledItem(itemId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/scheduled-items/${itemId}`, { method: "DELETE" });
+  if (!response.ok) throw new Error("Could not delete calendar item.");
 }
