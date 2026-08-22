@@ -4,6 +4,7 @@ import { EventLogger } from "../components/EventLogger";
 import { EventTimeline } from "../components/EventTimeline";
 import { ManualEventLogger } from "../components/ManualEventLogger";
 import { ObservationPeriods } from "../components/ObservationPeriods";
+import { PottyPredictionCard } from "../components/PottyPredictionCard";
 
 interface Props {
   dog: Dog;
@@ -38,6 +39,12 @@ export function TodayPage({
         </div>
         <a className="secondary-button" href="#settings">Settings</a>
       </section>
+
+      <PottyPredictionCard
+        dogId={dog.id}
+        dogName={dog.name}
+        refreshKey={timelineKey + observationKey}
+      />
 
       <EventLogger
         dogId={dog.id}

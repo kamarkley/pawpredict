@@ -11,6 +11,7 @@ import {
 import type { LoggedEvent } from "../types/event";
 import type { ObservationPeriod } from "../types/observation";
 import type { ScheduledItem, ScheduledItemType } from "../types/schedule";
+import { DailyStatsDashboard } from "../components/DailyStatsDashboard";
 
 interface Props {
   dogId: string;
@@ -99,6 +100,11 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
   const poopCount = selectedEvents.filter((event) => event.event_type_code === "POOP").length;
   const accidents = selectedEvents.filter((event) => ["PEE", "POOP"].includes(event.event_type_code) && event.option_name?.toLowerCase() === "accident").length;
 
+  function changeMonth(delta: number) {
+    setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
+    setSelectedDate(null);
+  }
+
   function selectDay(date: Date) {
     const key = localKey(date);
     setSelectedDate(key);
@@ -154,9 +160,9 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
 
       <section className="calendar-card">
         <div className="calendar-toolbar">
-          <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>‹</button>
+          <button type="button" onClick={() => changeMonth(-1)}>‹</button>
           <h2>{month.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</h2>
-          <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>›</button>
+          <button type="button" onClick={() => changeMonth(1)}>›</button>
         </div>
         <div className="calendar-weekdays">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div>
         <div className="calendar-grid">
@@ -193,6 +199,21 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
           {selectedItems.length > 0 && <div className="calendar-section"><h3>Care & appointments</h3>{selectedItems.map((item) => <div className={`scheduled-row ${item.is_completed ? "completed" : ""}`} key={item.id}><span className="scheduled-icon">{ITEM_ICONS[item.item_type]}</span><div><strong>{item.title}</strong><p>{new Date(item.scheduled_for).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}{item.location ? ` · ${item.location}` : ""}</p>{item.notes && <small>{item.notes}</small>}</div><div className="scheduled-actions"><button type="button" onClick={() => void toggleComplete(item)}>{item.is_completed ? "Undo" : "Done"}</button><button type="button" onClick={() => void removeItem(item)}>Delete</button></div></div>)}</div>}
 
           <div className="calendar-section"><h3>Activity</h3>{selectedEvents.length ? <div className="history-list">{[...selectedEvents].sort((a,b) => new Date(a.event_time).getTime() - new Date(b.event_time).getTime()).map((event) => <div className="history-row" key={event.id}><span>{eventIcon(event.event_type_code)}</span><div><strong>{event.event_type_name}</strong><small>{new Date(event.event_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}{event.option_name ? ` · ${event.option_name}` : ""}</small></div></div>)}</div> : <p className="muted-copy">No activity logged for this day.</p>}</div>
+
+          <div className="calendar-day-insights">
+            <DailyStatsDashboard
+              dogId={dogId}
+              startTime={dateRange(selectedDate).start}
+              endTime={dateRange(selectedDate).end}
+              rangeLabel={new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+              previousStartTime={null}
+              previousEndTime={null}
+              comparisonLabel={null}
+              refreshKey={refreshKey}
+              preferenceRefreshKey={0}
+              embedded
+            />
+          </div>
         </section>
       )}
     </>

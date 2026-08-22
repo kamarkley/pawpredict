@@ -2,6 +2,7 @@ import { DogProfile } from "../components/DogProfile";
 import { OptionManager } from "../components/OptionManager";
 import { StatSettings } from "../components/StatSettings";
 import { TrackingSettings } from "../components/TrackingSettings";
+import { DataExportCard } from "../components/DataExportCard";
 import type { Dog } from "../types/dog";
 import type { SavedOption } from "../types/event";
 
@@ -35,6 +36,7 @@ export function SettingsPage({
       <TrackingSettings dogId={dog.id} refreshKey={eventPreferenceKey} onChanged={onEventPreferencesChanged} />
       <OptionManager dogId={dog.id} options={options} onOptionsChanged={onOptionsChanged} />
       <StatSettings dogId={dog.id} refreshKey={statPreferenceKey} onChanged={onStatPreferencesChanged} />
+      <DataExportCard dogId={dog.id} dogName={dog.name} />
     </>
   );
 }

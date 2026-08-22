@@ -5,7 +5,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
-from psycopg import IntegrityError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

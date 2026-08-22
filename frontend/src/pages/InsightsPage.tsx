@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { DailyStatsDashboard } from "../components/DailyStatsDashboard";
+import { ModelPerformancePanel } from "../components/ModelPerformancePanel";
 import {
   getInsightDateRange,
   getPreviousInsightDateRange,
@@ -155,17 +156,21 @@ export function InsightsPage({
       </div>
 
       {!customRangeInvalid && (
-        <DailyStatsDashboard
-          dogId={dogId}
-          startTime={range.start}
-          endTime={range.end}
-          rangeLabel={range.label}
-          previousStartTime={comparisonRange?.start ?? null}
-          previousEndTime={comparisonRange?.end ?? null}
-          comparisonLabel={comparisonRange?.label ?? null}
-          refreshKey={refreshKey}
-          preferenceRefreshKey={preferenceRefreshKey}
-        />
+        <>
+          <ModelPerformancePanel dogId={dogId} refreshKey={refreshKey} />
+
+          <DailyStatsDashboard
+            dogId={dogId}
+            startTime={range.start}
+            endTime={range.end}
+            rangeLabel={range.label}
+            previousStartTime={comparisonRange?.start ?? null}
+            previousEndTime={comparisonRange?.end ?? null}
+            comparisonLabel={comparisonRange?.label ?? null}
+            refreshKey={refreshKey}
+            preferenceRefreshKey={preferenceRefreshKey}
+          />
+        </>
       )}
     </section>
   );

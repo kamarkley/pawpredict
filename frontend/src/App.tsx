@@ -89,7 +89,7 @@ function App() {
   return (
     <div className="app-layout">
       <header className="topbar">
-        <div><p className="brand">PawPredict</p><p className="tagline">Personalized canine behavior tracking</p></div>
+        <div><p className="brand">PawPredict</p><p className="tagline">Personalized routine tracking + potty prediction</p></div>
         {dog && <span className="dog-pill">🐾 {dog.name}</span>}
       </header>
 

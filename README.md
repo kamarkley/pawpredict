@@ -1,43 +1,119 @@
 # PawPredict
 
-Personalized canine behavior prediction powered by machine learning.
+PawPredict is a personalized canine routine tracker and machine-learning application built around one dog's real behavior history. It combines fast mobile event logging, observation-aware data quality, calendar/history views, customizable analytics, and a live model that estimates the chance of a potty event in the next 10 minutes.
 
-## Vision
+## What it does
 
-PawPredict is a full-stack machine learning platform that learns an individual dog's behavior through event-based logging and predicts potty breaks, naps, and behavioral patterns.
+### Today
+- Quick-log configurable events such as pee, poop, potty attempts, naps, nighttime sleep, treats, zoomies, baths, and care events.
+- Expand event details directly beneath the selected quick-log button.
+- Track unobserved periods separately from events, including interval-only evidence that a pee or poop happened while the exact time is unknown.
+- Show a live **PawPredict AI** card with:
+  - any-potty probability in the next 10 minutes,
+  - separate pee and poop probabilities,
+  - next-hour risk forecast,
+  - time since the latest pee, poop, and wake-up,
+  - model/estimate confidence,
+  - interpretable current drivers.
 
-## Features
+### Calendar
+- Browse all historical tracking dates.
+- See care/appointment markers without cluttering the calendar with every event.
+- Schedule vet, grooming, bath, medication, daycare, training, or custom items.
+- Tap a date to reveal that day's activity plus a full embedded daily Insights view.
 
-- Event-based behavior logging
-- Automated feature engineering
-- Personalized predictions
-- Behavioral analytics dashboard
-- REST API
-- Time-series data processing
+### Insights
+- Today, 7-day, 30-day, all-time, and custom ranges.
+- Range-aware labels and comparisons.
+- Cross-midnight sleep/session accounting.
+- Potty timing, outcomes, accidents, sleep, activity, behavior, symptom, and walk charts.
+- Observation coverage and interval-potty evidence metrics.
+- A model report with chronological holdout PR-AUC, ROC-AUC, Brier score, positive windows, training volume, and strongest learned signals.
 
-## Tech Stack
+### Settings
+- Edit the dog profile.
+- Enable/disable event types.
+- Manage saved logging options.
+- Choose/reorder Insight stat cards and charts.
+- Customize the app accent color.
+- Download a portable JSON backup of the complete PawPredict history.
 
-Frontend
-- React
+## Machine learning
+
+The production target is:
+
+> **Will an exact pee or poop event occur in the next 10 minutes?**
+
+PawPredict creates five-minute historical snapshots and trains personalized logistic-regression models for:
+
+1. any potty in the next 10 minutes,
+2. pee in the next 10 minutes,
+3. poop in the next 10 minutes.
+
+Feature engineering includes elapsed time since the latest pee, poop, potty attempt, and wake-up; same-day potty counts; recent treats/zoomies/potty attempts; cyclical time-of-day and weekday features; and age.
+
+Training windows that overlap logged **unobserved time or sleep are excluded** from negative examples. Pee/poop evidence recorded only at the observation-period level is preserved for data-quality reporting but is never assigned a fabricated timestamp.
+
+When there are not yet enough clean positive windows for a fitted model, the app labels its output **Early personalized estimate** and uses the dog's own empirical timing patterns. Once the minimum data threshold is met, it automatically switches to the fitted personalized model.
+
+See [`ml/MODEL_CARD.md`](ml/MODEL_CARD.md) for modeling assumptions and evaluation details.
+
+## Stack
+
+**Frontend**
+- React 19
 - TypeScript
-- Tailwind CSS
+- Vite
+- Recharts
+- Responsive custom CSS
 
-Backend
+**Backend**
 - FastAPI
-- PostgreSQL
 - SQLAlchemy
+- PostgreSQL / Supabase
+- Pydantic
 
-Machine Learning
+**Machine learning**
 - Python
-- pandas
+- NumPy
 - scikit-learn
-- XGBoost
+- Logistic regression baseline with chronological holdout evaluation
 
-Deployment
-- GitHub
-- Vercel
-- Supabase
+**Deployment**
+- Vercel frontend
+- Render backend
+- Supabase Postgres
 
-## Project Status
+## Repository layout
 
-🚧 In Development
+```text
+backend/       FastAPI API, database models, prediction service
+frontend/      React + TypeScript application
+database/      SQL migrations and schema references
+ml/            Modeling documentation and offline experimentation utilities
+docs/          Database/project documentation
+tests/         Project tests
+```
+
+## Local development
+
+Backend:
+
+```bash
+cd backend
+source ../.venv/bin/activate
+pip install -r requirements.txt
+python -m fastapi dev app/main.py
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Current status
+
+**v1.0 completion release.** Core tracking, history, analytics, scheduling, data-quality handling, data export, and live personalized potty-risk predictions are implemented. Remaining work is expected to be bug fixing, calibration improvements as more real-world data accumulates, and minor UX adjustments.

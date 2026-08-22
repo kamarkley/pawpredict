@@ -360,3 +360,47 @@ export async function deleteScheduledItem(itemId: string): Promise<void> {
   const response = await fetch(`${API_URL}/scheduled-items/${itemId}`, { method: "DELETE" });
   if (!response.ok) throw new Error("Could not delete calendar item.");
 }
+
+export async function getPottyPrediction(
+  dogId: string,
+  signal?: AbortSignal,
+): Promise<import("../types/prediction").PottyPrediction> {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const params = new URLSearchParams({ timezone });
+  const response = await fetch(
+    `${API_URL}/dogs/${dogId}/predictions/potty?${params.toString()}`,
+    { signal },
+  );
+  if (!response.ok) throw await parseError(response, "Could not calculate potty prediction.");
+  return response.json() as Promise<import("../types/prediction").PottyPrediction>;
+}
+
+export async function getPottyModelReport(
+  dogId: string,
+  signal?: AbortSignal,
+): Promise<import("../types/prediction").PottyModelReport> {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const params = new URLSearchParams({ timezone });
+  const response = await fetch(
+    `${API_URL}/dogs/${dogId}/predictions/potty/report?${params.toString()}`,
+    { signal },
+  );
+  if (!response.ok) throw await parseError(response, "Could not load model report.");
+  return response.json() as Promise<import("../types/prediction").PottyModelReport>;
+}
+
+export async function downloadDogExport(dogId: string, dogName: string): Promise<void> {
+  const response = await fetch(`${API_URL}/dogs/${dogId}/export`);
+  if (!response.ok) throw await parseError(response, "Could not export PawPredict data.");
+  const data = await response.json();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const safeName = dogName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "dog";
+  link.href = url;
+  link.download = `pawpredict-${safeName}-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

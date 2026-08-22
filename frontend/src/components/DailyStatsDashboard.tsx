@@ -23,6 +23,7 @@ interface Props {
   comparisonLabel: string | null;
   refreshKey: number;
   preferenceRefreshKey: number;
+  embedded?: boolean;
 }
 
 type ComparisonGoal = "HIGHER" | "LOWER" | "NEUTRAL";
@@ -151,79 +152,62 @@ function elapsedLabel(timestamp?: string): string {
     : `${hours} hr`;
 }
 
-function typicalTimeOfDay(
+function averageIntervalMinutes(
+  events: LoggedEvent[],
+  eventCode: "PEE" | "POOP",
+): number | null {
+  const times = events
+    .filter((event) => event.event_type_code === eventCode)
+    .map((event) => new Date(event.event_time).getTime())
+    .sort((a, b) => a - b);
+
+  if (times.length < 2) return null;
+
+  const intervals = times.slice(1).map((time, index) => (time - times[index]) / 60_000);
+  return intervals.reduce((sum, value) => sum + value, 0) / intervals.length;
+}
+
+function peakEventWindow(
   events: LoggedEvent[],
   eventCode: "PEE" | "POOP",
 ): string {
-  const relevant = events.filter(
-    (event) => event.event_type_code === eventCode,
-  );
-
-  if (!relevant.length) {
-    return "—";
-  }
-
-  let x = 0;
-  let y = 0;
-
+  const relevant = events.filter((event) => event.event_type_code === eventCode);
+  if (!relevant.length) return "—";
+  const counts = new Map<number, number>();
   for (const event of relevant) {
-    const date = new Date(event.event_time);
-
-    const minutes =
-      date.getHours() * 60 +
-      date.getMinutes();
-
-    const angle =
-      (minutes / 1440) *
-      Math.PI *
-      2;
-
-    x += Math.cos(angle);
-    y += Math.sin(angle);
+    const hour = new Date(event.event_time).getHours();
+    counts.set(hour, (counts.get(hour) ?? 0) + 1);
   }
+  const hour = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  const start = new Date();
+  start.setHours(hour, 0, 0, 0);
+  const end = new Date(start);
+  end.setHours(hour + 1);
+  return `${start.toLocaleTimeString("en-US", { hour: "numeric" })}–${end.toLocaleTimeString("en-US", { hour: "numeric" })}`;
+}
 
-  const averageAngle =
-    Math.atan2(
-      y / relevant.length,
-      x / relevant.length,
-    );
-
-  const normalizedAngle =
-    averageAngle < 0
-      ? averageAngle + Math.PI * 2
-      : averageAngle;
-
-  const averageMinutes =
-    Math.round(
-      (normalizedAngle /
-        (Math.PI * 2)) *
-        1440,
-    ) % 1440;
-
-  const hours =
-    Math.floor(
-      averageMinutes / 60,
-    );
-
-  const minutes =
-    averageMinutes % 60;
-
-  const date = new Date();
-
-  date.setHours(
-    hours,
-    minutes,
-    0,
-    0,
-  );
-
-  return date.toLocaleTimeString(
-    "en-US",
-    {
-      hour: "numeric",
-      minute: "2-digit",
-    },
-  );
+function statDisplayName(code: string, fallback: string, isToday: boolean): string {
+  if (isToday) return fallback;
+  const names: Record<string, string> = {
+    PEE_COUNT: "Total pees",
+    POOP_COUNT: "Total poops",
+    ACCIDENT_COUNT: "Total accidents",
+    POTTY_SUCCESS_RATE: "Potty success rate",
+    SINCE_LAST_PEE: "Average time between pees",
+    SINCE_LAST_POOP: "Average time between poops",
+    NAP_DURATION: "Total nap time",
+    SLEEP_DURATION: "Total night sleep",
+    MEAL_COUNT: "Meals logged",
+    TREAT_COUNT: "Treats logged",
+    WALK_DISTANCE: "Walk distance",
+    SYMPTOM_COUNT: "Symptoms logged",
+    AVG_SYMPTOM_SEVERITY: "Average symptom severity",
+    BEHAVIOR_COUNT: "Behavior logs",
+    SOCIAL_COUNT: "Social activities",
+    MEDICATION_COUNT: "Medications logged",
+    UNOBSERVED_TIME: "Unobserved time",
+  };
+  return names[code] ?? fallback;
 }
 
 function calculate(
@@ -311,10 +295,16 @@ function calculate(
 
     case "SINCE_LAST_PEE": {
       if (!isToday) {
-        return {
-          value: String(count(events, "PEE")),
-          detail: "pees during range",
-        };
+        const interval = averageIntervalMinutes(events, "PEE");
+        return interval === null
+          ? { value: "—", detail: "Need at least two pee logs" }
+          : {
+              value: minutesLabel(interval),
+              rawValue: interval,
+              comparisonGoal: "NEUTRAL",
+              comparisonFormat: "MINUTES",
+              detail: "average gap between exact pee logs",
+            };
       }
 
       return {
@@ -330,10 +320,16 @@ function calculate(
 
     case "SINCE_LAST_POOP": {
       if (!isToday) {
-        return {
-          value: String(count(events, "POOP")),
-          detail: "poops during range",
-        };
+        const interval = averageIntervalMinutes(events, "POOP");
+        return interval === null
+          ? { value: "—", detail: "Need at least two poop logs" }
+          : {
+              value: minutesLabel(interval),
+              rawValue: interval,
+              comparisonGoal: "NEUTRAL",
+              comparisonFormat: "MINUTES",
+              detail: "average gap between exact poop logs",
+            };
       }
 
       return {
@@ -770,6 +766,7 @@ export function DailyStatsDashboard({
   comparisonLabel,
   refreshKey,
   preferenceRefreshKey,
+  embedded = false,
 }: Props) {
   const [events, setEvents] =
     useState<LoggedEvent[]>([]);
@@ -1022,18 +1019,14 @@ export function DailyStatsDashboard({
 
   return (
     <section className="dashboard-section">
-      <div className="page-heading">
+      <div className={embedded ? "embedded-insights-heading" : "page-heading"}>
         <div>
-          <p className="eyebrow">
-            {rangeLabel}
-          </p>
-
-          <h1>Insights</h1>
-
+          <p className="eyebrow">{embedded ? "Daily insights" : rangeLabel}</p>
+          {embedded ? <h2>{rangeLabel}</h2> : <h1>Insights</h1>}
           <p>
-            Stats reflect the selected period
-            and only the activities you have
-            chosen to track.
+            {embedded
+              ? "Stats and patterns for this calendar day."
+              : "Stats reflect the selected period and only the activities you have chosen to track."}
           </p>
         </div>
       </div>
@@ -1083,35 +1076,29 @@ export function DailyStatsDashboard({
 
           <article className="highlight-card">
             <span>
-              Typical pee time
+              Peak pee window
             </span>
 
             <strong>
-              {typicalTimeOfDay(
-                events,
-                "PEE",
-              )}
+              {peakEventWindow(events, "PEE")}
             </strong>
 
             <p>
-              average logged time of day
+              most common exact pee hour
             </p>
           </article>
 
           <article className="highlight-card">
             <span>
-              Typical poop time
+              Peak poop window
             </span>
 
             <strong>
-              {typicalTimeOfDay(
-                events,
-                "POOP",
-              )}
+              {peakEventWindow(events, "POOP")}
             </strong>
 
             <p>
-              average logged time of day
+              most common exact poop hour
             </p>
           </article>
 
@@ -1220,9 +1207,11 @@ export function DailyStatsDashboard({
                 }
               >
                 <p>
-                  {
-                    preference.display_name
-                  }
+                  {statDisplayName(
+                    preference.code,
+                    preference.display_name,
+                    todayRange,
+                  )}
                 </p>
 
                 <strong>
