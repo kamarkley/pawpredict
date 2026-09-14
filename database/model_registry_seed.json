@@ -1,0 +1,208 @@
+{
+  "prospective_shadow": {
+    "evaluation_key": "shadow-2026-09-04-to-2026-09-14",
+    "evaluation_type": "PROSPECTIVE_SHADOW",
+    "window_start": "2026-09-04T00:35:00+00:00",
+    "window_end": "2026-09-14T21:45:00+00:00",
+    "snapshot_count": 1155
+  },
+  "models": [
+    {
+      "target": "ANY",
+      "version_label": "v1-any-full-60d",
+      "status": "PRODUCTION",
+      "model_family": "logistic_regression",
+      "feature_names": [
+        "minutes_since_pee",
+        "minutes_since_poop",
+        "minutes_since_potty_attempt",
+        "minutes_since_wake",
+        "pee_count_today",
+        "poop_count_today",
+        "recent_treat_30m",
+        "recent_zoomies_30m",
+        "recent_potty_attempt_30m",
+        "hour_sin",
+        "hour_cos",
+        "weekday_sin",
+        "weekday_cos",
+        "age_days"
+      ],
+      "training_window_days": 60,
+      "sample_weight_half_life_days": null,
+      "calibration_method": "raw",
+      "decision_reason": "Retained after prospective shadow validation; V2 did not generalize better.",
+      "metrics": {
+        "positive_count": 132,
+        "prevalence": 0.11428571428571428,
+        "pr_auc": 0.25320151814943836,
+        "roc_auc": 0.6939704967564205,
+        "brier_score": 0.09686593277454358,
+        "ece": 0.035940741687075985,
+        "calibration_intercept": -0.1367719856889217,
+        "calibration_slope": 0.8375804419443872
+      }
+    },
+    {
+      "target": "ANY",
+      "version_label": "v2-any-lean-21d-sigmoid",
+      "status": "REJECTED",
+      "model_family": "logistic_regression",
+      "feature_names": [
+        "minutes_since_pee",
+        "minutes_since_poop",
+        "minutes_since_wake",
+        "hour_sin",
+        "hour_cos"
+      ],
+      "training_window_days": 21,
+      "sample_weight_half_life_days": null,
+      "calibration_method": "sigmoid",
+      "decision_reason": "Rejected after prospective shadow validation; V1 had better PR-AUC, ROC-AUC, Brier, and ECE.",
+      "metrics": {
+        "positive_count": 132,
+        "prevalence": 0.11428571428571428,
+        "pr_auc": 0.2474262720704063,
+        "roc_auc": 0.6679107793477295,
+        "brier_score": 0.10527749531004643,
+        "ece": 0.05303961917061432,
+        "calibration_intercept": -1.0426273067311915,
+        "calibration_slope": 0.6029186159746188
+      }
+    },
+    {
+      "target": "PEE",
+      "version_label": "v1-pee-full-60d",
+      "status": "PRODUCTION",
+      "model_family": "logistic_regression",
+      "feature_names": [
+        "minutes_since_pee",
+        "minutes_since_poop",
+        "minutes_since_potty_attempt",
+        "minutes_since_wake",
+        "pee_count_today",
+        "poop_count_today",
+        "recent_treat_30m",
+        "recent_zoomies_30m",
+        "recent_potty_attempt_30m",
+        "hour_sin",
+        "hour_cos",
+        "weekday_sin",
+        "weekday_cos",
+        "age_days"
+      ],
+      "training_window_days": 60,
+      "sample_weight_half_life_days": null,
+      "calibration_method": "raw",
+      "decision_reason": "Retained after prospective shadow validation; V2 underperformed materially.",
+      "metrics": {
+        "positive_count": 97,
+        "prevalence": 0.08398268398268398,
+        "pr_auc": 0.2215804443247669,
+        "roc_auc": 0.702063804493988,
+        "brier_score": 0.07361901546921604,
+        "ece": 0.021135284749782005,
+        "calibration_intercept": -0.17380685062963253,
+        "calibration_slope": 0.9707285032315044
+      }
+    },
+    {
+      "target": "PEE",
+      "version_label": "v2-pee-weighted-14d-hl14",
+      "status": "REJECTED",
+      "model_family": "logistic_regression",
+      "feature_names": [
+        "minutes_since_pee",
+        "minutes_since_poop",
+        "minutes_since_potty_attempt",
+        "minutes_since_wake",
+        "pee_count_today",
+        "poop_count_today",
+        "recent_treat_30m",
+        "recent_zoomies_30m",
+        "recent_potty_attempt_30m",
+        "hour_sin",
+        "hour_cos",
+        "weekday_sin",
+        "weekday_cos",
+        "age_days"
+      ],
+      "training_window_days": 14,
+      "sample_weight_half_life_days": 14.0,
+      "calibration_method": "raw",
+      "decision_reason": "Rejected after prospective shadow validation; poorer ranking and calibration than V1.",
+      "metrics": {
+        "positive_count": 97,
+        "prevalence": 0.08398268398268398,
+        "pr_auc": 0.19010459187926326,
+        "roc_auc": 0.6633016974256037,
+        "brier_score": 0.09455140634517925,
+        "ece": 0.09348160468442078,
+        "calibration_intercept": -1.516996699162079,
+        "calibration_slope": 0.5521966236728998
+      }
+    },
+    {
+      "target": "POOP",
+      "version_label": "v1-poop-full-60d",
+      "status": "PRODUCTION",
+      "model_family": "logistic_regression",
+      "feature_names": [
+        "minutes_since_pee",
+        "minutes_since_poop",
+        "minutes_since_potty_attempt",
+        "minutes_since_wake",
+        "pee_count_today",
+        "poop_count_today",
+        "recent_treat_30m",
+        "recent_zoomies_30m",
+        "recent_potty_attempt_30m",
+        "hour_sin",
+        "hour_cos",
+        "weekday_sin",
+        "weekday_cos",
+        "age_days"
+      ],
+      "training_window_days": 60,
+      "sample_weight_half_life_days": null,
+      "calibration_method": "raw",
+      "decision_reason": "Current live champion; V2 is validated candidate pending production integration.",
+      "metrics": {
+        "positive_count": 54,
+        "prevalence": 0.046753246753246755,
+        "pr_auc": 0.16255563879732063,
+        "roc_auc": 0.7392606048373532,
+        "brier_score": 0.04683970700519967,
+        "ece": 0.03506942132142903,
+        "calibration_intercept": -1.2051489381819156,
+        "calibration_slope": 0.46991972359666195
+      }
+    },
+    {
+      "target": "POOP",
+      "version_label": "v2-poop-lean-30d",
+      "status": "CANDIDATE",
+      "model_family": "logistic_regression",
+      "feature_names": [
+        "minutes_since_poop",
+        "poop_count_today",
+        "hour_sin",
+        "hour_cos"
+      ],
+      "training_window_days": 30,
+      "sample_weight_half_life_days": null,
+      "calibration_method": "raw",
+      "decision_reason": "Prospective validation supports promotion; keep candidate until prediction service actually uses this config.",
+      "metrics": {
+        "positive_count": 54,
+        "prevalence": 0.046753246753246755,
+        "pr_auc": 0.20340645443650573,
+        "roc_auc": 0.7958926228680996,
+        "brier_score": 0.04230535664895196,
+        "ece": 0.014998724871820529,
+        "calibration_intercept": -0.20279258678069412,
+        "calibration_slope": 0.9751708872798093
+      }
+    }
+  ]
+}
