@@ -2,34 +2,69 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.dog import Dog
 from app.schemas.prediction import PottyModelReport, PottyPredictionResponse
-from app.services.potty_prediction import get_training_bundle, model_report, predict_potty
+from app.services.potty_prediction import (
+    get_training_bundle,
+    model_report,
+    predict_potty,
+)
+from app.services.prediction_ledger import run_prediction_telemetry
 
 router = APIRouter(prefix="/dogs", tags=["predictions"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
 
 
-@router.get("/{dog_id}/predictions/potty", response_model=PottyPredictionResponse)
+@router.get(
+    "/{dog_id}/predictions/potty",
+    response_model=PottyPredictionResponse,
+)
 def potty_prediction(
     dog_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     db: DatabaseSession,
     timezone_name: str = Query(default="UTC", alias="timezone"),
 ) -> PottyPredictionResponse:
     if db.get(Dog, dog_id) is None:
         raise HTTPException(status_code=404, detail="Dog not found.")
+
+    now = datetime.now(timezone.utc)
+
     try:
-        bundle = get_training_bundle(db, dog_id, timezone_name, datetime.now(timezone.utc))
-        return predict_potty(bundle, datetime.now(timezone.utc))
+        bundle = get_training_bundle(
+            db,
+            dog_id,
+            timezone_name,
+            now,
+        )
+        response = predict_potty(bundle, now)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
+
+    # The champion result is already computed. Model-ledger writes, outcome
+    # resolution, and challenger scoring run after the HTTP response so shadow
+    # work cannot add latency or break the user-facing prediction.
+    background_tasks.add_task(
+        run_prediction_telemetry,
+        dog_id,
+        timezone_name,
+        now,
+    )
+
+    return response
 
 
-@router.get("/{dog_id}/predictions/potty/report", response_model=PottyModelReport)
+@router.get(
+    "/{dog_id}/predictions/potty/report",
+    response_model=PottyModelReport,
+)
 def potty_model_report(
     dog_id: uuid.UUID,
     db: DatabaseSession,
@@ -38,7 +73,15 @@ def potty_model_report(
     if db.get(Dog, dog_id) is None:
         raise HTTPException(status_code=404, detail="Dog not found.")
     try:
-        bundle = get_training_bundle(db, dog_id, timezone_name, datetime.now(timezone.utc))
+        bundle = get_training_bundle(
+            db,
+            dog_id,
+            timezone_name,
+            datetime.now(timezone.utc),
+        )
         return model_report(bundle)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc

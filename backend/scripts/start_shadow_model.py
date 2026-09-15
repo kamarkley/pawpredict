@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""
-Manual/controlled model promotion.
-
-Do not run this merely because a candidate has good metrics. Promote only after
-the PawPredict inference service is configured to actually execute that version.
-"""
+"""Move a registered candidate into SHADOW status."""
 from __future__ import annotations
 
 import argparse
@@ -19,39 +14,53 @@ if str(BACKEND_ROOT) not in sys.path:
 from app.database import SessionLocal  # noqa: E402
 from app.models.dog import Dog
 from app.services.model_registry import (  # noqa: E402
+    change_status,
     get_model_by_label,
-    promote_to_production,
 )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dog-id", required=True)
-    parser.add_argument("--target", choices=["ANY", "PEE", "POOP"], required=True)
+    parser.add_argument(
+        "--target",
+        choices=["ANY", "PEE", "POOP"],
+        required=True,
+    )
     parser.add_argument("--version-label", required=True)
-    parser.add_argument("--reason", required=True)
+    parser.add_argument(
+        "--reason",
+        default="Started silent champion/challenger shadow scoring.",
+    )
     args = parser.parse_args()
 
     with SessionLocal() as db:
-        model = get_model_by_label(
+        version = get_model_by_label(
             db,
             uuid.UUID(args.dog_id),
             args.target,
             args.version_label,
         )
-        if model is None:
+        if version is None:
             raise SystemExit("Model version not found.")
 
-        promote_to_production(
+        if version.status not in {"CANDIDATE", "SHADOW"}:
+            raise SystemExit(
+                f"Expected CANDIDATE/SHADOW, found {version.status}. "
+                "Do not shadow a rejected or production model accidentally."
+            )
+
+        change_status(
             db,
-            model,
+            version,
+            new_status="SHADOW",
             reason=args.reason,
             actor="manual-cli",
         )
         db.commit()
 
         print(
-            f"Promoted {args.target} / {args.version_label} to PRODUCTION."
+            f"{args.target} / {args.version_label} is now SHADOW."
         )
 
 
