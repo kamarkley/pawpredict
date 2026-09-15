@@ -170,3 +170,13 @@ data/
 /models/
 *.pkl
 *.joblib
+
+# PawPredict ML experiment outputs
+backend/model_audit_30d/
+backend/model_v2_experiments/
+backend/model_final_validation/
+backend/model_final_validation*.zipbackend/time_to_event_prospective/frozen_challengers.pkl
+backend/time_to_event_prospective/prospective_latest.json
+backend/time_to_event_prospective/prospective_latest.csv
+backend/time_to_event_prospective/prospective_calibration.csv
+backend/time_to_event_validation/

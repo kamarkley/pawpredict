@@ -1,0 +1,49 @@
+{
+  "artifact": "frozen_challengers.pkl",
+  "sha256": "fd706d166b02cec4202124ed97d65bb5e7143741b1c5383741668ac6629a4c32",
+  "artifact_version": 1,
+  "dog_id": "7ab62dbc-d719-41d4-950c-e5849ae38ccc",
+  "timezone_name": "America/Chicago",
+  "frozen_at": "2026-09-15T03:38:38.818858+00:00",
+  "candidates": {
+    "PEE": {
+      "label": "PEE-120m-full",
+      "horizon_minutes": 120,
+      "feature_set": "FULL",
+      "feature_names": [
+        "minutes_since_pee",
+        "minutes_since_poop",
+        "minutes_since_potty_attempt",
+        "minutes_since_wake",
+        "pee_count_today",
+        "poop_count_today",
+        "recent_treat_30m",
+        "recent_zoomies_30m",
+        "recent_potty_attempt_30m",
+        "hour_sin",
+        "hour_cos",
+        "weekday_sin",
+        "weekday_cos",
+        "age_days"
+      ],
+      "training_landmarks": 1672,
+      "training_events": 906,
+      "km_median_minutes": 79.38439948333333
+    },
+    "POOP": {
+      "label": "POOP-180m-lean",
+      "horizon_minutes": 180,
+      "feature_set": "LEAN",
+      "feature_names": [
+        "minutes_since_poop",
+        "minutes_since_wake",
+        "poop_count_today",
+        "hour_sin",
+        "hour_cos"
+      ],
+      "training_landmarks": 1672,
+      "training_events": 652,
+      "km_median_minutes": 163.61875281666667
+    }
+  }
+}
