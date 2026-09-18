@@ -1,27 +1,20 @@
-from typing import Annotated
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from app.database import get_db
 from app.models.treat_type import TreatType
 from app.schemas.treat_type import TreatTypeResponse
+from app.security import CurrentUser, DatabaseSession
 
-router = APIRouter(
-    prefix="/treat-types",
-    tags=["treat types"],
-)
-
-DatabaseSession = Annotated[Session, Depends(get_db)]
+router = APIRouter(prefix="/treat-types", tags=["treat types"])
 
 
 @router.get("", response_model=list[TreatTypeResponse])
-def list_treat_types(db: DatabaseSession) -> list[TreatType]:
-    statement = (
-        select(TreatType)
-        .where(TreatType.is_active.is_(True))
-        .order_by(TreatType.name)
+def list_treat_types(db: DatabaseSession, user: CurrentUser) -> list[TreatType]:
+    del user
+    return list(
+        db.scalars(
+            select(TreatType)
+            .where(TreatType.is_active.is_(True))
+            .order_by(TreatType.name)
+        ).all()
     )
-
-    return list(db.scalars(statement).all())

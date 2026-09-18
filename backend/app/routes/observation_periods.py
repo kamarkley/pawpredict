@@ -1,13 +1,10 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.database import get_db
-from app.models.dog import Dog
 from app.models.observation_period import ObservationPeriod
 from app.models.saved_option import SavedOption
 from app.schemas.observation_period import (
@@ -15,9 +12,9 @@ from app.schemas.observation_period import (
     ObservationPeriodResponse,
     ObservationPeriodUpdate,
 )
+from app.security import CurrentUser, DatabaseSession, require_owned_dog
 
 router = APIRouter(prefix="/observation-periods", tags=["observation periods"])
-DatabaseSession = Annotated[Session, Depends(get_db)]
 
 
 def build_response(
@@ -77,24 +74,31 @@ def ensure_no_overlap(
         )
 
 
+def owned_period(
+    db: DatabaseSession,
+    period_id: uuid.UUID,
+    user: CurrentUser,
+) -> ObservationPeriod:
+    period = db.get(ObservationPeriod, period_id)
+    if period is None:
+        raise HTTPException(status_code=404, detail="Observation period not found.")
+    require_owned_dog(db, period.dog_id, user)
+    return period
+
+
 @router.post("", response_model=ObservationPeriodResponse, status_code=status.HTTP_201_CREATED)
 def create_period(
     data: ObservationPeriodCreate,
     db: DatabaseSession,
+    user: CurrentUser,
 ) -> ObservationPeriodResponse:
-    if db.get(Dog, data.dog_id) is None:
-        raise HTTPException(status_code=404, detail="Dog not found.")
+    require_owned_dog(db, data.dog_id, user)
     option = validate_reason(db, data.dog_id, data.reason_option_id)
     now = datetime.now(timezone.utc)
     start_time = data.start_time or now
     if data.end_time is not None and data.end_time <= start_time:
         raise HTTPException(status_code=400, detail="End time must be after start time.")
-    ensure_no_overlap(
-        db,
-        dog_id=data.dog_id,
-        start_time=start_time,
-        end_time=data.end_time,
-    )
+    ensure_no_overlap(db, dog_id=data.dog_id, start_time=start_time, end_time=data.end_time)
     period = ObservationPeriod(
         id=uuid.uuid4(),
         dog_id=data.dog_id,
@@ -122,10 +126,12 @@ def create_period(
 def list_periods(
     dog_id: uuid.UUID,
     db: DatabaseSession,
+    user: CurrentUser,
     start_time: datetime | None = Query(default=None),
     end_time: datetime | None = Query(default=None),
     active_only: bool = Query(default=False),
 ) -> list[ObservationPeriodResponse]:
+    require_owned_dog(db, dog_id, user)
     statement = (
         select(ObservationPeriod, SavedOption)
         .outerjoin(SavedOption, ObservationPeriod.reason_option_id == SavedOption.id)
@@ -148,10 +154,9 @@ def update_period(
     period_id: uuid.UUID,
     data: ObservationPeriodUpdate,
     db: DatabaseSession,
+    user: CurrentUser,
 ) -> ObservationPeriodResponse:
-    period = db.get(ObservationPeriod, period_id)
-    if period is None:
-        raise HTTPException(status_code=404, detail="Observation period not found.")
+    period = owned_period(db, period_id, user)
     values = data.model_dump(exclude_unset=True)
     start_time = values.get("start_time", period.start_time)
     end_time = values.get("end_time", period.end_time)
@@ -181,10 +186,12 @@ def update_period(
 
 
 @router.post("/{period_id}/end", response_model=ObservationPeriodResponse)
-def end_period(period_id: uuid.UUID, db: DatabaseSession) -> ObservationPeriodResponse:
-    period = db.get(ObservationPeriod, period_id)
-    if period is None:
-        raise HTTPException(status_code=404, detail="Observation period not found.")
+def end_period(
+    period_id: uuid.UUID,
+    db: DatabaseSession,
+    user: CurrentUser,
+) -> ObservationPeriodResponse:
+    period = owned_period(db, period_id, user)
     if period.end_time is not None:
         raise HTTPException(status_code=400, detail="Observation period has already ended.")
     now = datetime.now(timezone.utc)
@@ -199,9 +206,11 @@ def end_period(period_id: uuid.UUID, db: DatabaseSession) -> ObservationPeriodRe
 
 
 @router.delete("/{period_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_period(period_id: uuid.UUID, db: DatabaseSession) -> None:
-    period = db.get(ObservationPeriod, period_id)
-    if period is None:
-        raise HTTPException(status_code=404, detail="Observation period not found.")
+def delete_period(
+    period_id: uuid.UUID,
+    db: DatabaseSession,
+    user: CurrentUser,
+) -> None:
+    period = owned_period(db, period_id, user)
     db.delete(period)
     db.commit()

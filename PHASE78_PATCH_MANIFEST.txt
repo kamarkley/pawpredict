@@ -1,0 +1,16 @@
+PawPredict Phase 7/8 productization patch
+
+Apply: unzip this archive into the PawPredict repository root so paths merge.
+Do not run migration 011 until migration 010 is complete AND all existing dogs have owner_user_id backfilled.
+Read README_PRODUCTIZATION_PHASE78.md before deployment.
+
+Validation performed in the build workspace:
+- backend pytest: 31 passed
+- backend compileall: passed
+- frontend TypeScript: passed (npx tsc -b)
+- frontend ESLint: passed
+- FastAPI OpenAPI generation: passed, 26 paths
+- all router endpoints require CurrentUser
+- git diff --check: passed
+
+A full Vite bundle could not be executed in this Linux build sandbox because the uploaded repository contained macOS-native node_modules and outbound npm installation was unavailable. The included GitHub Actions workflow runs `npm ci && npm run build` on clean Linux dependencies, and the user should run `npm install && npm run build` locally before deployment.

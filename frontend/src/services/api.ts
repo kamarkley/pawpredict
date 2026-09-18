@@ -1,4 +1,5 @@
-import type { Dog, DogUpdate } from "../types/dog";
+import type { Dog, DogCreate, DogUpdate } from "../types/dog";
+import { getAccessToken } from "./auth";
 import type {
   EventCreate,
   EventPreference,
@@ -26,6 +27,23 @@ import type { ScheduledItem, ScheduledItemCreate } from "../types/schedule";
 const API_URL = import.meta.env.VITE_API_URL;
 if (!API_URL) throw new Error("VITE_API_URL is not configured.");
 
+const __nativeFetch = window.fetch.bind(window);
+
+async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const token = await getAccessToken();
+  const headers = new Headers(init.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  let response = await __nativeFetch(input, { ...init, headers });
+  if (response.status === 401 && token) {
+    const refreshed = await getAccessToken(true);
+    if (refreshed && refreshed !== token) {
+      headers.set("Authorization", `Bearer ${refreshed}`);
+      response = await __nativeFetch(input, { ...init, headers });
+    }
+  }
+  return response;
+}
+
 async function parseError(response: Response, fallback: string): Promise<Error> {
   try {
     const body = (await response.json()) as { detail?: string };
@@ -36,13 +54,23 @@ async function parseError(response: Response, fallback: string): Promise<Error> 
 }
 
 export async function getDogs(signal?: AbortSignal): Promise<Dog[]> {
-  const response = await fetch(`${API_URL}/dogs`, { signal });
+  const response = await apiFetch(`${API_URL}/dogs`, { signal });
   if (!response.ok) throw await parseError(response, "Failed to load dogs.");
   return response.json() as Promise<Dog[]>;
 }
 
+export async function createDog(data: DogCreate): Promise<Dog> {
+  const response = await apiFetch(`${API_URL}/dogs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw await parseError(response, "Failed to create dog profile.");
+  return response.json() as Promise<Dog>;
+}
+
 export async function updateDog(dogId: string, updates: DogUpdate): Promise<Dog> {
-  const response = await fetch(`${API_URL}/dogs/${dogId}`, {
+  const response = await apiFetch(`${API_URL}/dogs/${dogId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
@@ -55,12 +83,14 @@ export async function getEventTypes(
   dogId?: string,
   enabledOnly = false,
   signal?: AbortSignal,
+  includeInactive = false,
 ): Promise<EventType[]> {
   const params = new URLSearchParams();
   if (dogId) params.set("dog_id", dogId);
   if (enabledOnly) params.set("enabled_only", "true");
+  if (includeInactive) params.set("include_inactive", "true");
   const suffix = params.size ? `?${params.toString()}` : "";
-  const response = await fetch(`${API_URL}/event-types${suffix}`, { signal });
+  const response = await apiFetch(`${API_URL}/event-types${suffix}`, { signal });
   if (!response.ok) throw await parseError(response, "Failed to load event types.");
   return response.json() as Promise<EventType[]>;
 }
@@ -69,7 +99,7 @@ export async function getEventPreferences(
   dogId: string,
   signal?: AbortSignal,
 ): Promise<EventPreference[]> {
-  const response = await fetch(`${API_URL}/dogs/${dogId}/event-preferences`, { signal });
+  const response = await apiFetch(`${API_URL}/dogs/${dogId}/event-preferences`, { signal });
   if (!response.ok) throw await parseError(response, "Failed to load tracking preferences.");
   return response.json() as Promise<EventPreference[]>;
 }
@@ -78,7 +108,7 @@ export async function updateEventPreferences(
   dogId: string,
   eventTypeIds: number[],
 ): Promise<EventPreference[]> {
-  const response = await fetch(`${API_URL}/dogs/${dogId}/event-preferences`, {
+  const response = await apiFetch(`${API_URL}/dogs/${dogId}/event-preferences`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ event_type_ids: eventTypeIds }),
@@ -96,7 +126,7 @@ export async function getSavedOptions(
   const params = new URLSearchParams({ dog_id: dogId });
   if (category) params.set("category", category);
   if (includeInactive) params.set("include_inactive", "true");
-  const response = await fetch(`${API_URL}/saved-options?${params.toString()}`, { signal });
+  const response = await apiFetch(`${API_URL}/saved-options?${params.toString()}`, { signal });
   if (!response.ok) throw await parseError(response, "Failed to load saved options.");
   return response.json() as Promise<SavedOption[]>;
 }
@@ -106,7 +136,7 @@ export async function createSavedOption(
   category: string,
   name: string,
 ): Promise<SavedOption> {
-  const response = await fetch(`${API_URL}/saved-options`, {
+  const response = await apiFetch(`${API_URL}/saved-options`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ dog_id: dogId, category, name }),
@@ -119,7 +149,7 @@ export async function updateSavedOption(
   optionId: string,
   updates: { name?: string; is_active?: boolean },
 ): Promise<SavedOption> {
-  const response = await fetch(`${API_URL}/saved-options/${optionId}`, {
+  const response = await apiFetch(`${API_URL}/saved-options/${optionId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
@@ -129,7 +159,7 @@ export async function updateSavedOption(
 }
 
 export async function createEvent(event: EventCreate): Promise<LoggedEvent> {
-  const response = await fetch(`${API_URL}/events`, {
+  const response = await apiFetch(`${API_URL}/events`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(event),
@@ -145,13 +175,13 @@ export async function getEvents(
   signal?: AbortSignal,
 ): Promise<LoggedEvent[]> {
   const params = new URLSearchParams({ dog_id: dogId, start_time: startTime, end_time: endTime });
-  const response = await fetch(`${API_URL}/events?${params.toString()}`, { signal });
+  const response = await apiFetch(`${API_URL}/events?${params.toString()}`, { signal });
   if (!response.ok) throw await parseError(response, "Failed to load events.");
   return response.json() as Promise<LoggedEvent[]>;
 }
 
 export async function updateEvent(eventId: string, updates: EventUpdate): Promise<LoggedEvent> {
-  const response = await fetch(`${API_URL}/events/${eventId}`, {
+  const response = await apiFetch(`${API_URL}/events/${eventId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
@@ -161,7 +191,7 @@ export async function updateEvent(eventId: string, updates: EventUpdate): Promis
 }
 
 export async function deleteEvent(eventId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/events/${eventId}`, { method: "DELETE" });
+  const response = await apiFetch(`${API_URL}/events/${eventId}`, { method: "DELETE" });
   if (!response.ok) throw await parseError(response, "Failed to delete event.");
 }
 
@@ -176,7 +206,7 @@ export async function getObservationPeriods(
   if (startTime) params.set("start_time", startTime);
   if (endTime) params.set("end_time", endTime);
   if (activeOnly) params.set("active_only", "true");
-  const response = await fetch(`${API_URL}/observation-periods?${params.toString()}`, { signal });
+  const response = await apiFetch(`${API_URL}/observation-periods?${params.toString()}`, { signal });
   if (!response.ok) throw await parseError(response, "Failed to load observation periods.");
   return response.json() as Promise<ObservationPeriod[]>;
 }
@@ -184,7 +214,7 @@ export async function getObservationPeriods(
 export async function createObservationPeriod(
   period: ObservationPeriodCreate,
 ): Promise<ObservationPeriod> {
-  const response = await fetch(`${API_URL}/observation-periods`, {
+  const response = await apiFetch(`${API_URL}/observation-periods`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(period),
@@ -197,7 +227,7 @@ export async function updateObservationPeriod(
   periodId: string,
   updates: ObservationPeriodUpdate,
 ): Promise<ObservationPeriod> {
-  const response = await fetch(`${API_URL}/observation-periods/${periodId}`, {
+  const response = await apiFetch(`${API_URL}/observation-periods/${periodId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
@@ -207,7 +237,7 @@ export async function updateObservationPeriod(
 }
 
 export async function endObservationPeriod(periodId: string): Promise<ObservationPeriod> {
-  const response = await fetch(`${API_URL}/observation-periods/${periodId}/end`, {
+  const response = await apiFetch(`${API_URL}/observation-periods/${periodId}/end`, {
     method: "POST",
   });
   if (!response.ok) throw await parseError(response, "Failed to end observation period.");
@@ -215,7 +245,7 @@ export async function endObservationPeriod(periodId: string): Promise<Observatio
 }
 
 export async function deleteObservationPeriod(periodId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/observation-periods/${periodId}`, {
+  const response = await apiFetch(`${API_URL}/observation-periods/${periodId}`, {
     method: "DELETE",
   });
   if (!response.ok) throw await parseError(response, "Failed to delete observation period.");
@@ -225,7 +255,7 @@ export async function getStatPreferences(
   dogId: string,
   signal?: AbortSignal,
 ): Promise<StatPreference[]> {
-  const response = await fetch(`${API_URL}/dogs/${dogId}/stat-preferences`, { signal });
+  const response = await apiFetch(`${API_URL}/dogs/${dogId}/stat-preferences`, { signal });
   if (!response.ok) throw await parseError(response, "Failed to load dashboard preferences.");
   return response.json() as Promise<StatPreference[]>;
 }
@@ -234,7 +264,7 @@ export async function updateStatPreferences(
   dogId: string,
   statCodes: string[],
 ): Promise<StatPreference[]> {
-  const response = await fetch(`${API_URL}/dogs/${dogId}/stat-preferences`, {
+  const response = await apiFetch(`${API_URL}/dogs/${dogId}/stat-preferences`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ stat_codes: statCodes }),
@@ -247,7 +277,7 @@ export async function getChartPreferences(
   dogId: string,
   signal?: AbortSignal,
 ): Promise<ChartPreference[]> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/dogs/${dogId}/chart-preferences`,
     { signal },
   );
@@ -263,7 +293,7 @@ export async function updateChartPreferences(
   dogId: string,
   preferences: ChartPreferenceUpdate[],
 ): Promise<ChartPreference[]> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/dogs/${dogId}/chart-preferences`,
     {
       method: "PUT",
@@ -287,7 +317,7 @@ export async function getUIPreferences(
   dogId: string,
   signal?: AbortSignal,
 ): Promise<UIPreference> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/dogs/${dogId}/ui-preferences`,
     { signal },
   );
@@ -303,7 +333,7 @@ export async function updateUIPreferences(
   dogId: string,
   accentColor: string,
 ): Promise<UIPreference> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/dogs/${dogId}/ui-preferences`,
     {
       method: "PUT",
@@ -332,13 +362,13 @@ export async function getScheduledItems(
   const params = new URLSearchParams({ dog_id: dogId });
   if (startTime) params.set("start_time", startTime);
   if (endTime) params.set("end_time", endTime);
-  const response = await fetch(`${API_URL}/scheduled-items?${params.toString()}`, { signal });
+  const response = await apiFetch(`${API_URL}/scheduled-items?${params.toString()}`, { signal });
   if (!response.ok) throw new Error("Could not load calendar items.");
   return response.json();
 }
 
 export async function createScheduledItem(data: ScheduledItemCreate): Promise<ScheduledItem> {
-  const response = await fetch(`${API_URL}/scheduled-items`, {
+  const response = await apiFetch(`${API_URL}/scheduled-items`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error("Could not add calendar item.");
@@ -349,7 +379,7 @@ export async function updateScheduledItem(
   itemId: string,
   updates: Partial<Omit<ScheduledItemCreate, "dog_id">> & { is_completed?: boolean },
 ): Promise<ScheduledItem> {
-  const response = await fetch(`${API_URL}/scheduled-items/${itemId}`, {
+  const response = await apiFetch(`${API_URL}/scheduled-items/${itemId}`, {
     method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updates),
   });
   if (!response.ok) throw new Error("Could not update calendar item.");
@@ -357,7 +387,7 @@ export async function updateScheduledItem(
 }
 
 export async function deleteScheduledItem(itemId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/scheduled-items/${itemId}`, { method: "DELETE" });
+  const response = await apiFetch(`${API_URL}/scheduled-items/${itemId}`, { method: "DELETE" });
   if (!response.ok) throw new Error("Could not delete calendar item.");
 }
 
@@ -367,7 +397,7 @@ export async function getPottyPrediction(
 ): Promise<import("../types/prediction").PottyPrediction> {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const params = new URLSearchParams({ timezone });
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/dogs/${dogId}/predictions/potty?${params.toString()}`,
     { signal },
   );
@@ -381,7 +411,7 @@ export async function getPottyModelReport(
 ): Promise<import("../types/prediction").PottyModelReport> {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const params = new URLSearchParams({ timezone });
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/dogs/${dogId}/predictions/potty/report?${params.toString()}`,
     { signal },
   );
@@ -390,7 +420,7 @@ export async function getPottyModelReport(
 }
 
 export async function downloadDogExport(dogId: string, dogName: string): Promise<void> {
-  const response = await fetch(`${API_URL}/dogs/${dogId}/export`);
+  const response = await apiFetch(`${API_URL}/dogs/${dogId}/export`);
   if (!response.ok) throw await parseError(response, "Could not export PawPredict data.");
   const data = await response.json();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });

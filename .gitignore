@@ -180,3 +180,5 @@ backend/time_to_event_prospective/prospective_latest.json
 backend/time_to_event_prospective/prospective_latest.csv
 backend/time_to_event_prospective/prospective_calibration.csv
 backend/time_to_event_validation/
+
+backend/model_final_validation.zip

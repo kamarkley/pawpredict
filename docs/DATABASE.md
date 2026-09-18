@@ -8,8 +8,7 @@ PawPredict uses PostgreSQL to store canine behavioral events and observation con
 
 ### `dogs`
 
-Stores persistent dog profile information. Age is calculated from `birth_date`
-and is not stored directly.
+Stores persistent dog profile information. `owner_user_id` links each dog to its Supabase Auth account. Age is calculated from `birth_date` and is not stored directly.
 
 ### `event_types`
 
@@ -39,4 +38,5 @@ Stores optional contextual notes for a dog on a particular date.
 - Derived machine learning features are not stored in the raw event table.
 - Dog age is calculated from birth date.
 - Standardized codes prevent inconsistent event naming.
-- UUID primary keys support future multi-user and multi-dog expansion.
+- UUID primary keys support multi-user and multi-dog operation.
+- Dog-owned tables are protected by API ownership checks and Supabase RLS policies.

@@ -2,23 +2,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
-
 from fastapi import (
     APIRouter,
-    Depends,
     HTTPException,
     status,
 )
 from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from app.database import get_db
 from app.models.chart_preference import (
     ChartType,
     DogChartPreference,
 )
-from app.models.dog import Dog
 from app.models.ui_preference import DogUIPreference
 from app.schemas.chart_preference import (
     ChartPreferenceResponse,
@@ -28,6 +21,7 @@ from app.schemas.ui_preference import (
     UIPreferenceResponse,
     UIPreferenceUpdate,
 )
+from app.security import CurrentUser, DatabaseSession, require_owned_dog
 
 
 router = APIRouter(
@@ -35,21 +29,12 @@ router = APIRouter(
     tags=["dashboard-preferences"],
 )
 
-DatabaseSession = Annotated[
-    Session,
-    Depends(get_db),
-]
-
-
-def ensure_dog_exists(
+def ensure_dog_access(
     dog_id: uuid.UUID,
-    db: Session,
+    db: DatabaseSession,
+    user: CurrentUser,
 ) -> None:
-    if db.get(Dog, dog_id) is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dog not found.",
-        )
+    require_owned_dog(db, dog_id, user)
 
 
 @router.get(
@@ -59,8 +44,9 @@ def ensure_dog_exists(
 def get_chart_preferences(
     dog_id: uuid.UUID,
     db: DatabaseSession,
+    user: CurrentUser,
 ) -> list[ChartPreferenceResponse]:
-    ensure_dog_exists(dog_id, db)
+    ensure_dog_access(dog_id, db, user)
 
     statement = (
         select(
@@ -107,8 +93,9 @@ def update_chart_preferences(
     dog_id: uuid.UUID,
     data: ChartPreferencesUpdate,
     db: DatabaseSession,
+    user: CurrentUser,
 ) -> list[ChartPreferenceResponse]:
-    ensure_dog_exists(dog_id, db)
+    ensure_dog_access(dog_id, db, user)
 
     chart_types = db.scalars(
         select(ChartType).where(
@@ -190,6 +177,7 @@ def update_chart_preferences(
     return get_chart_preferences(
         dog_id,
         db,
+        user,
     )
 
 
@@ -200,8 +188,9 @@ def update_chart_preferences(
 def get_ui_preferences(
     dog_id: uuid.UUID,
     db: DatabaseSession,
+    user: CurrentUser,
 ) -> UIPreferenceResponse:
-    ensure_dog_exists(dog_id, db)
+    ensure_dog_access(dog_id, db, user)
 
     preference = db.get(
         DogUIPreference,
@@ -234,8 +223,9 @@ def update_ui_preferences(
     dog_id: uuid.UUID,
     data: UIPreferenceUpdate,
     db: DatabaseSession,
+    user: CurrentUser,
 ) -> UIPreferenceResponse:
-    ensure_dog_exists(dog_id, db)
+    ensure_dog_access(dog_id, db, user)
 
     preference = db.get(
         DogUIPreference,

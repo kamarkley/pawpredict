@@ -1,21 +1,14 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from app.database import get_db
-from app.models.dog import Dog
 from app.models.dog_event_preference import DogEventPreference
 from app.models.event_type import EventType
 from app.schemas.event_type import EventTypeResponse
+from app.security import CurrentUser, DatabaseSession, require_owned_dog
 
 router = APIRouter(prefix="/dogs/{dog_id}/event-preferences", tags=["event preferences"])
-DatabaseSession = Annotated[Session, Depends(get_db)]
-
 
 class EventPreferenceItem(BaseModel):
     event_type: EventTypeResponse
@@ -28,9 +21,8 @@ class EventPreferencesUpdate(BaseModel):
 
 
 @router.get("", response_model=list[EventPreferenceItem])
-def get_preferences(dog_id: uuid.UUID, db: DatabaseSession) -> list[EventPreferenceItem]:
-    if db.get(Dog, dog_id) is None:
-        raise HTTPException(status_code=404, detail="Dog not found.")
+def get_preferences(dog_id: uuid.UUID, db: DatabaseSession, user: CurrentUser) -> list[EventPreferenceItem]:
+    require_owned_dog(db, dog_id, user)
     rows = db.execute(
         select(EventType, DogEventPreference)
         .outerjoin(
@@ -53,12 +45,11 @@ def get_preferences(dog_id: uuid.UUID, db: DatabaseSession) -> list[EventPrefere
 
 @router.put("", response_model=list[EventPreferenceItem])
 def update_preferences(
-    dog_id: uuid.UUID, data: EventPreferencesUpdate, db: DatabaseSession
+    dog_id: uuid.UUID, data: EventPreferencesUpdate, db: DatabaseSession, user: CurrentUser
 ) -> list[EventPreferenceItem]:
     if not data.event_type_ids:
         raise HTTPException(status_code=400, detail="At least one event type must remain enabled.")
-    if db.get(Dog, dog_id) is None:
-        raise HTTPException(status_code=404, detail="Dog not found.")
+    require_owned_dog(db, dog_id, user)
 
     active_ids = set(db.scalars(select(EventType.id).where(EventType.is_active.is_(True))).all())
     requested = set(data.event_type_ids)
@@ -79,4 +70,4 @@ def update_preferences(
             preference.is_enabled = event_type_id in requested
             preference.display_order = order
     db.commit()
-    return get_preferences(dog_id, db)
+    return get_preferences(dog_id, db, user)

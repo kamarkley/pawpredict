@@ -1,10 +1,13 @@
-import type { Dog } from "../types/dog";
-import type { EventType, SavedOption } from "../types/event";
+import { ActiveSessions } from "../components/ActiveSessions";
 import { EventLogger } from "../components/EventLogger";
 import { EventTimeline } from "../components/EventTimeline";
 import { ManualEventLogger } from "../components/ManualEventLogger";
 import { ObservationPeriods } from "../components/ObservationPeriods";
 import { PottyPredictionCard } from "../components/PottyPredictionCard";
+import type { Dog } from "../types/dog";
+import type { EventType, SavedOption } from "../types/event";
+
+const SESSION_CODES = new Set(["SLEEP", "SLEEP_NIGHT", "WALK"]);
 
 interface Props {
   dog: Dog;
@@ -29,6 +32,8 @@ export function TodayPage({
   onObservationChanged,
   onOptionCreated,
 }: Props) {
+  const quickLogTypes = eventTypes.filter((eventType) => !SESSION_CODES.has(eventType.code));
+
   return (
     <>
       <section className="today-hero">
@@ -46,10 +51,18 @@ export function TodayPage({
         refreshKey={timelineKey + observationKey}
       />
 
+      <ActiveSessions
+        dogId={dog.id}
+        eventTypes={eventTypes}
+        allEventTypes={allEventTypes}
+        refreshKey={timelineKey}
+        onEventSaved={onEventSaved}
+      />
+
       <EventLogger
         dogId={dog.id}
         dogName={dog.name}
-        eventTypes={eventTypes}
+        eventTypes={quickLogTypes}
         options={options}
         onOptionCreated={onOptionCreated}
         onEventSaved={onEventSaved}

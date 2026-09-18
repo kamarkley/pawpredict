@@ -1,25 +1,17 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from app.database import get_db
-from app.models.dog import Dog
 from app.models.dog_stat_preference import DogStatPreference
 from app.models.stat_type import StatType
 from app.schemas.stat import StatPreferenceItem, StatPreferencesUpdate
+from app.security import CurrentUser, DatabaseSession, require_owned_dog
 
 router = APIRouter(prefix="/dogs/{dog_id}/stat-preferences", tags=["stat preferences"])
-DatabaseSession = Annotated[Session, Depends(get_db)]
-
 
 @router.get("", response_model=list[StatPreferenceItem])
-def get_preferences(dog_id: uuid.UUID, db: DatabaseSession) -> list[StatPreferenceItem]:
-    if db.get(Dog, dog_id) is None:
-        raise HTTPException(status_code=404, detail="Dog not found.")
+def get_preferences(dog_id: uuid.UUID, db: DatabaseSession, user: CurrentUser) -> list[StatPreferenceItem]:
+    require_owned_dog(db, dog_id, user)
 
     rows = db.execute(
         select(StatType, DogStatPreference)
@@ -48,9 +40,9 @@ def update_preferences(
     dog_id: uuid.UUID,
     data: StatPreferencesUpdate,
     db: DatabaseSession,
+    user: CurrentUser,
 ) -> list[StatPreferenceItem]:
-    if db.get(Dog, dog_id) is None:
-        raise HTTPException(status_code=404, detail="Dog not found.")
+    require_owned_dog(db, dog_id, user)
 
     valid_codes = set(db.scalars(select(StatType.code)).all())
     requested = data.stat_codes
@@ -84,4 +76,4 @@ def update_preferences(
             preference.updated_at = now
 
     db.commit()
-    return get_preferences(dog_id, db)
+    return get_preferences(dog_id, db, user)

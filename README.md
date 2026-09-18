@@ -1,11 +1,12 @@
 # PawPredict
 
-PawPredict is a personalized canine routine tracker and machine-learning application built around one dog's real behavior history. It combines fast mobile event logging, observation-aware data quality, calendar/history views, customizable analytics, and a live model that estimates the chance of a potty event in the next 10 minutes.
+PawPredict is a personalized, multi-user canine routine tracker and machine-learning application that began with one dog's real behavior history and now supports account-scoped dog profiles. It combines fast mobile event logging, observation-aware data quality, calendar/history views, customizable analytics, and a live model that estimates the chance of a potty event in the next 10 minutes.
 
 ## What it does
 
 ### Today
-- Quick-log configurable events such as pee, poop, potty attempts, naps, nighttime sleep, treats, zoomies, baths, and care events.
+- Quick-log configurable events such as pee, poop, potty attempts, treats, zoomies, baths, and care events.
+- Start/end persistent Nap, Sleep, and Walk sessions whose timers survive navigation and reloads.
 - Expand event details directly beneath the selected quick-log button.
 - Track unobserved periods separately from events, including interval-only evidence that a pee or poop happened while the exact time is unknown.
 - Show a live **PawPredict AI** card with:
@@ -18,6 +19,7 @@ PawPredict is a personalized canine routine tracker and machine-learning applica
 
 ### Calendar
 - Browse all historical tracking dates.
+- Open any historical event to correct its date/time or details, or delete an erroneous log.
 - See care/appointment markers without cluttering the calendar with every event.
 - Schedule vet, grooming, bath, medication, daycare, training, or custom items.
 - Tap a date to reveal that day's activity plus a full embedded daily Insights view.
@@ -29,6 +31,12 @@ PawPredict is a personalized canine routine tracker and machine-learning applica
 - Potty timing, outcomes, accidents, sleep, activity, behavior, symptom, and walk charts.
 - Observation coverage and interval-potty evidence metrics.
 - A model report with chronological holdout PR-AUC, ROC-AUC, Brier score, positive windows, training volume, and strongest learned signals.
+
+### Accounts + dogs
+- Sign up/sign in with Supabase Auth.
+- Keep each account's dogs and tracking data isolated.
+- Create and switch between multiple dog profiles.
+- New dogs begin in Learning mode until enough personalized history exists.
 
 ### Settings
 - Edit the dog profile.
@@ -116,4 +124,4 @@ npm run dev
 
 ## Current status
 
-**v1.0 completion release.** Core tracking, history, analytics, scheduling, data-quality handling, data export, and live personalized potty-risk predictions are implemented. Remaining work is expected to be bug fixing, calibration improvements as more real-world data accumulates, and minor UX adjustments.
+**Phase 7/8 productization release.** Core tracking, historical editing, persistent activity sessions, multi-user authentication, per-account dog ownership, onboarding, RLS, production request instrumentation, and the validated ML lifecycle are implemented. Durable paid background-job infrastructure remains intentionally deferred. See [`README_PRODUCTIZATION_PHASE78.md`](README_PRODUCTIZATION_PHASE78.md) for migration and deployment instructions.
