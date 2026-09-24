@@ -29,7 +29,7 @@ function riskLabel(probability: number): string {
 }
 
 function modeLabel(prediction: PottyPrediction): string {
-  return prediction.mode === "TRAINED_MODEL" ? "Personalized ML model" : "Early personalized estimate";
+  return prediction.mode === "TRAINED_MODEL" ? "Personalized ML model" : "Learning mode";
 }
 
 export function PottyPredictionCard({ dogId, dogName, refreshKey }: Props) {
@@ -141,6 +141,13 @@ export function PottyPredictionCard({ dogId, dogName, refreshKey }: Props) {
           </div>
         </div>
       </div>
+
+      {prediction.mode === "EARLY_ESTIMATE" && (
+        <div className="prediction-context-note learning-mode-note">
+          <span>🧠</span>
+          <p><strong>Learning mode.</strong> PawPredict is building this dog&apos;s personal baseline from {prediction.exact_potty_events} exact potty logs across {prediction.data_days} days. The fitted personalized model unlocks automatically when there is enough clean history.</p>
+        </div>
+      )}
 
       {(prediction.currently_sleeping || prediction.currently_unobserved) && (
         <div className="prediction-context-note">

@@ -2281,3 +2281,338 @@ textarea:focus-visible {
 .calendar-day-insights .insights-charts-section {
   margin-top: 1.35rem;
 }
+
+/* ============================================================
+   Phase 7/8 — multi-user productization + reusable sessions
+   ============================================================ */
+
+.account-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.dog-switcher {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  min-height: 2.35rem;
+  padding: .15rem .35rem .15rem .65rem;
+  border: 1px solid var(--paw-border, #e2e4e8);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.dog-switcher select {
+  max-width: 10rem;
+  padding: .45rem .6rem .45rem .25rem;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.topbar-action {
+  min-height: 2.35rem;
+  padding: .45rem .7rem;
+  border: 1px solid var(--paw-border, #e2e4e8);
+  border-radius: .75rem;
+  color: #4d4a56;
+  background: #fff;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.topbar-action:hover {
+  border-color: color-mix(in srgb, var(--paw-accent) 35%, #ddd);
+  color: var(--paw-accent);
+}
+
+.auth-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at 15% 15%, color-mix(in srgb, var(--paw-accent) 12%, transparent), transparent 35%),
+    #f7f6fa;
+}
+
+.auth-card,
+.onboarding-card {
+  width: min(100%, 32rem);
+  padding: clamp(1.4rem, 4vw, 2rem);
+  border: 1px solid var(--paw-border, #e6e3eb);
+  border-radius: 1.5rem;
+  background: #fff;
+  box-shadow: var(--paw-shadow-md, 0 18px 48px rgba(43, 38, 56, .09));
+}
+
+.onboarding-card {
+  width: min(100%, 44rem);
+  margin: 1rem auto;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  margin-bottom: 1.4rem;
+}
+
+.auth-brand > span {
+  display: grid;
+  width: 3.2rem;
+  height: 3.2rem;
+  place-items: center;
+  border-radius: 1rem;
+  background: var(--paw-accent-soft, #f0edff);
+  font-size: 1.5rem;
+}
+
+.auth-brand h1,
+.onboarding-card h1 {
+  margin: 0;
+  letter-spacing: -.04em;
+}
+
+.auth-brand p,
+.onboarding-card > div > p:last-child,
+.auth-footnote {
+  margin: .3rem 0 0;
+  color: var(--paw-muted, #73707d);
+  font-size: .84rem;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .25rem;
+  margin-bottom: 1.25rem;
+  padding: .25rem;
+  border-radius: .8rem;
+  background: #f3f1f6;
+}
+
+.auth-tabs button {
+  padding: .6rem;
+  border: 0;
+  border-radius: .65rem;
+  color: var(--paw-muted, #73707d);
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.auth-tabs button.active {
+  color: #24212b;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(43, 38, 56, .07);
+}
+
+.auth-card form,
+.onboarding-card form {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: .25rem;
+}
+
+.auth-footnote {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.session-panel {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--paw-border, #e6e3eb);
+  border-radius: 1.5rem;
+  background: #fff;
+  box-shadow: var(--paw-shadow-sm, 0 10px 28px rgba(43, 38, 56, .06));
+}
+
+.session-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+}
+
+.session-card {
+  display: grid;
+  gap: .9rem;
+  padding: 1rem;
+  border: 1px solid #e9e7ed;
+  border-radius: 1rem;
+  background: #faf9fb;
+}
+
+.session-card.active {
+  border-color: color-mix(in srgb, var(--paw-accent) 35%, #e8e5ed);
+  background: color-mix(in srgb, var(--paw-accent) 5%, #fff);
+}
+
+.session-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+}
+
+.session-card-main > div {
+  display: grid;
+  gap: .15rem;
+}
+
+.session-icon {
+  font-size: 1.45rem;
+}
+
+.session-duration {
+  color: var(--paw-accent);
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.session-card small {
+  color: var(--paw-muted, #73707d);
+  font-size: .72rem;
+}
+
+.start-session-button,
+.end-session-button {
+  width: 100%;
+  padding: .58rem .65rem;
+  border-radius: .7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.start-session-button {
+  border: 1px solid color-mix(in srgb, var(--paw-accent) 35%, #ddd);
+  color: var(--paw-accent);
+  background: #fff;
+}
+
+.end-session-button {
+  border: 1px solid color-mix(in srgb, #c94b55 35%, #ddd);
+  color: #9f3038;
+  background: #fff6f7;
+}
+
+.edit-event-heading,
+.calendar-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.calendar-section-heading {
+  align-items: baseline;
+}
+
+.editable-history-row {
+  grid-template-columns: 2rem 1fr auto;
+}
+
+.compact-button {
+  padding: .35rem .55rem;
+  font-size: .75rem;
+}
+
+.split-actions {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.split-actions > div {
+  display: flex;
+  gap: .5rem;
+}
+
+.delete-button {
+  padding: .65rem .85rem;
+  border: 1px solid #e2b8bc;
+  border-radius: .75rem;
+  color: #9f3038;
+  background: #fff6f7;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.delete-button:disabled,
+.start-session-button:disabled,
+.end-session-button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.learning-mode-note {
+  border-color: color-mix(in srgb, var(--paw-accent) 25%, #e9e2f1);
+  background: color-mix(in srgb, var(--paw-accent) 5%, #fff);
+}
+
+.learning-mode-note p {
+  color: #565060;
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .account-controls {
+    max-width: 60%;
+  }
+
+  .session-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .topbar {
+    display: grid;
+  }
+
+  .account-controls {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-start;
+  }
+
+  .dog-switcher {
+    flex: 1;
+  }
+
+  .dog-switcher select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .editable-history-row {
+    grid-template-columns: 2rem 1fr;
+  }
+
+  .editable-history-row .compact-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .split-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .split-actions > div {
+    justify-content: flex-end;
+  }
+}

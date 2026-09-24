@@ -3,9 +3,10 @@
 ```text
 React + TypeScript (Vercel)
           |
-          | REST / JSON
+          | Supabase Auth + REST / JSON
           v
 FastAPI (Render)
+          | verifies token + dog ownership
           |
           +--------------------+
           |                    |
@@ -35,3 +36,33 @@ preferences, calendar)    logistic regression,
 7. Final logistic-regression models fit all usable history for live inference.
 8. If a target lacks enough positive/negative windows, a personalized empirical fallback is used and labeled accordingly.
 9. The Today UI requests live probabilities; Insights displays model-quality metrics.
+
+
+## Multi-user boundary
+
+Each `dogs` row is owned by one Supabase `auth.users` UUID. Every dog-scoped API route validates that ownership before querying or mutating the requested resource. Supabase RLS policies mirror the same boundary as defense in depth.
+
+```text
+auth.users
+    1
+    |
+    *
+dogs
+    1
+    |
+    +--* events
+    +--* observation_periods
+    +--* scheduled_items
+    +--* preferences
+    +--* model_versions / model_predictions / monitoring
+```
+
+The backend uses a trusted server-side PostgreSQL connection; browser clients never receive database credentials.
+
+## Session tracking
+
+Nap, nighttime sleep, and walk duration are represented by exact START/END events rather than client-only timers. The frontend reconstructs active state from persisted event history, so navigation or browser reloads do not lose the session.
+
+## Historical corrections
+
+Today and Calendar share the same event editor. Editing an old `event_time` updates the canonical event row, its `updated_at` timestamp, and therefore the prediction service's data fingerprint/cache invalidation path.

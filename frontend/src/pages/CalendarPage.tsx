@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { DailyStatsDashboard } from "../components/DailyStatsDashboard";
+import { EventEditor } from "../components/EventEditor";
 import {
   createScheduledItem,
   deleteScheduledItem,
@@ -8,15 +10,18 @@ import {
   getScheduledItems,
   updateScheduledItem,
 } from "../services/api";
-import type { LoggedEvent } from "../types/event";
+import type { EventType, LoggedEvent, SavedOption } from "../types/event";
 import type { ObservationPeriod } from "../types/observation";
 import type { ScheduledItem, ScheduledItemType } from "../types/schedule";
-import { DailyStatsDashboard } from "../components/DailyStatsDashboard";
 
 interface Props {
   dogId: string;
   dogName: string;
   refreshKey: number;
+  eventTypes: EventType[];
+  options: SavedOption[];
+  onOptionCreated: (option: SavedOption) => void;
+  onTimelineChanged: () => void;
 }
 
 const ITEM_LABELS: Record<ScheduledItemType, string> = {
@@ -52,15 +57,28 @@ function dateRange(key: string) {
 }
 
 function eventIcon(code: string) {
-  return ({ PEE: "💧", POOP: "💩", POTTY_ATTEMPT: "🚪", SLEEP: "😴", SLEEP_NIGHT: "🌙", BATH: "🛁", VET_VISIT: "🏥", GROOMING: "✂️", ZOOMIES: "⚡", TREAT: "🦴" } as Record<string, string>)[code] ?? "🐾";
+  return ({
+    PEE: "💧", POOP: "💩", POTTY_ATTEMPT: "🚪", SLEEP: "😴", SLEEP_NIGHT: "🌙",
+    WALK: "🦮", BATH: "🛁", VET_VISIT: "🏥", GROOMING: "✂️", ZOOMIES: "⚡", TREAT: "🦴",
+  } as Record<string, string>)[code] ?? "🐾";
 }
 
-export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
+export function CalendarPage({
+  dogId,
+  dogName,
+  refreshKey,
+  eventTypes,
+  options,
+  onOptionCreated,
+  onTimelineChanged,
+}: Props) {
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [events, setEvents] = useState<LoggedEvent[]>([]);
   const [periods, setPeriods] = useState<ObservationPeriod[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledItem[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<LoggedEvent | null>(null);
+  const [localRefreshKey, setLocalRefreshKey] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
   const [type, setType] = useState<ScheduledItemType>("VET_APPOINTMENT");
   const [title, setTitle] = useState("Vet appointment");
@@ -76,10 +94,15 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
       getEvents(dogId, range.start, range.end, controller.signal),
       getObservationPeriods(dogId, range.start, range.end, false, controller.signal),
       getScheduledItems(dogId, range.start, range.end, controller.signal),
-    ]).then(([e, p, s]) => { setEvents(e); setPeriods(p); setScheduled(s); })
-      .catch((err: unknown) => { if (err instanceof Error && err.name !== "AbortError") setError(err.message); });
+    ]).then(([eventRows, periodRows, scheduledRows]) => {
+      setEvents(eventRows);
+      setPeriods(periodRows);
+      setScheduled(scheduledRows);
+    }).catch((err: unknown) => {
+      if (err instanceof Error && err.name !== "AbortError") setError(err.message);
+    });
     return () => controller.abort();
-  }, [dogId, month, refreshKey]);
+  }, [dogId, month, refreshKey, localRefreshKey]);
 
   const days = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);
@@ -95,6 +118,7 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
     const { start, end } = dateRange(selectedDate);
     return new Date(period.start_time) < new Date(end) && (!period.end_time || new Date(period.end_time) > new Date(start));
   }) : [];
+  const editingType = editingEvent ? eventTypes.find((eventType) => eventType.id === editingEvent.event_type_id) ?? null : null;
 
   const peeCount = selectedEvents.filter((event) => event.event_type_code === "PEE").length;
   const poopCount = selectedEvents.filter((event) => event.event_type_code === "POOP").length;
@@ -103,11 +127,13 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
   function changeMonth(delta: number) {
     setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
     setSelectedDate(null);
+    setEditingEvent(null);
   }
 
   function selectDay(date: Date) {
     const key = localKey(date);
     setSelectedDate(key);
+    setEditingEvent(null);
     setWhen(`${key}T09:00`);
   }
 
@@ -119,10 +145,21 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
   async function addItem() {
     if (!when || !title.trim()) return;
     try {
-      await createScheduledItem({ dog_id: dogId, title: title.trim(), item_type: type, scheduled_for: new Date(when).toISOString(), location: location.trim() || null, notes: notes.trim() || null });
-      setShowAdd(false); setLocation(""); setNotes("");
-      const range = monthRange(month); setScheduled(await getScheduledItems(dogId, range.start, range.end));
-    } catch (err) { setError(err instanceof Error ? err.message : "Could not add calendar item."); }
+      await createScheduledItem({
+        dog_id: dogId,
+        title: title.trim(),
+        item_type: type,
+        scheduled_for: new Date(when).toISOString(),
+        location: location.trim() || null,
+        notes: notes.trim() || null,
+      });
+      setShowAdd(false);
+      setLocation("");
+      setNotes("");
+      setLocalRefreshKey((key) => key + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not add calendar item.");
+    }
   }
 
   async function toggleComplete(item: ScheduledItem) {
@@ -136,10 +173,16 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
     setScheduled((current) => current.filter((entry) => entry.id !== item.id));
   }
 
+  function eventChanged() {
+    setEditingEvent(null);
+    setLocalRefreshKey((key) => key + 1);
+    onTimelineChanged();
+  }
+
   return (
     <>
       <section className="calendar-hero">
-        <div><p className="eyebrow">History + care plan</p><h1>Calendar</h1><p>Look back at {dogName}’s data or plan important care ahead.</p></div>
+        <div><p className="eyebrow">History + care plan</p><h1>Calendar</h1><p>Look back at {dogName}’s data, correct past logs, or plan important care ahead.</p></div>
         <button className="save-button" type="button" onClick={() => setShowAdd((value) => !value)}>+ Add item</button>
       </section>
 
@@ -188,7 +231,10 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
 
       {selectedDate && (
         <section className="calendar-detail">
-          <div className="section-heading"><div><p className="eyebrow">Selected day</p><h2>{new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</h2></div><button className="secondary-button" type="button" onClick={() => setSelectedDate(null)}>Close</button></div>
+          <div className="section-heading">
+            <div><p className="eyebrow">Selected day</p><h2>{new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</h2></div>
+            <button className="secondary-button" type="button" onClick={() => { setSelectedDate(null); setEditingEvent(null); }}>Close</button>
+          </div>
           <div className="day-summary-grid">
             <article><span>Pees</span><strong>{peeCount}</strong></article>
             <article><span>Poops</span><strong>{poopCount}</strong></article>
@@ -196,9 +242,47 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
             <article><span>Unobserved periods</span><strong>{selectedPeriods.length}</strong></article>
           </div>
 
-          {selectedItems.length > 0 && <div className="calendar-section"><h3>Care & appointments</h3>{selectedItems.map((item) => <div className={`scheduled-row ${item.is_completed ? "completed" : ""}`} key={item.id}><span className="scheduled-icon">{ITEM_ICONS[item.item_type]}</span><div><strong>{item.title}</strong><p>{new Date(item.scheduled_for).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}{item.location ? ` · ${item.location}` : ""}</p>{item.notes && <small>{item.notes}</small>}</div><div className="scheduled-actions"><button type="button" onClick={() => void toggleComplete(item)}>{item.is_completed ? "Undo" : "Done"}</button><button type="button" onClick={() => void removeItem(item)}>Delete</button></div></div>)}</div>}
+          {selectedItems.length > 0 && (
+            <div className="calendar-section">
+              <h3>Care & appointments</h3>
+              {selectedItems.map((item) => (
+                <div className={`scheduled-row ${item.is_completed ? "completed" : ""}`} key={item.id}>
+                  <span className="scheduled-icon">{ITEM_ICONS[item.item_type]}</span>
+                  <div><strong>{item.title}</strong><p>{new Date(item.scheduled_for).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}{item.location ? ` · ${item.location}` : ""}</p>{item.notes && <small>{item.notes}</small>}</div>
+                  <div className="scheduled-actions"><button type="button" onClick={() => void toggleComplete(item)}>{item.is_completed ? "Undo" : "Done"}</button><button type="button" onClick={() => void removeItem(item)}>Delete</button></div>
+                </div>
+              ))}
+            </div>
+          )}
 
-          <div className="calendar-section"><h3>Activity</h3>{selectedEvents.length ? <div className="history-list">{[...selectedEvents].sort((a,b) => new Date(a.event_time).getTime() - new Date(b.event_time).getTime()).map((event) => <div className="history-row" key={event.id}><span>{eventIcon(event.event_type_code)}</span><div><strong>{event.event_type_name}</strong><small>{new Date(event.event_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}{event.option_name ? ` · ${event.option_name}` : ""}</small></div></div>)}</div> : <p className="muted-copy">No activity logged for this day.</p>}</div>
+          <div className="calendar-section">
+            <div className="calendar-section-heading"><h3>Activity</h3><span className="muted-copy">Past logs can be corrected here.</span></div>
+            {selectedEvents.length ? (
+              <div className="history-list">
+                {[...selectedEvents].sort((a, b) => new Date(a.event_time).getTime() - new Date(b.event_time).getTime()).map((event) => (
+                  <div className="history-row editable-history-row" key={event.id}>
+                    <span>{eventIcon(event.event_type_code)}</span>
+                    <div><strong>{event.event_type_name}</strong><small>{new Date(event.event_time).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}{event.option_name ? ` · ${event.option_name}` : ""}</small></div>
+                    <button className="secondary-button compact-button" type="button" onClick={() => setEditingEvent(event)}>Edit</button>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="muted-copy">No activity logged for this day.</p>}
+          </div>
+
+          {editingEvent && editingType && (
+            <EventEditor
+              key={editingEvent.id}
+              dogId={dogId}
+              event={editingEvent}
+              eventType={editingType}
+              options={options}
+              onOptionCreated={onOptionCreated}
+              onSaved={eventChanged}
+              onDeleted={eventChanged}
+              onCancel={() => setEditingEvent(null)}
+            />
+          )}
 
           <div className="calendar-day-insights">
             <DailyStatsDashboard
@@ -209,7 +293,7 @@ export function CalendarPage({ dogId, dogName, refreshKey }: Props) {
               previousStartTime={null}
               previousEndTime={null}
               comparisonLabel={null}
-              refreshKey={refreshKey}
+              refreshKey={refreshKey + localRefreshKey}
               preferenceRefreshKey={0}
               embedded
             />

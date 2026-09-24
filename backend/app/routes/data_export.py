@@ -1,32 +1,23 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter
 from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from app.database import get_db
-from app.models.dog import Dog
 from app.models.event import Event
 from app.models.event_type import EventType
 from app.models.observation_period import ObservationPeriod
 from app.models.saved_option import SavedOption
 from app.models.scheduled_item import ScheduledItem
+from app.security import CurrentUser, DatabaseSession, require_owned_dog
 
 router = APIRouter(prefix="/dogs", tags=["data export"])
-DatabaseSession = Annotated[Session, Depends(get_db)]
-
 
 def iso(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
 
 
 @router.get("/{dog_id}/export")
-def export_dog_data(dog_id: uuid.UUID, db: DatabaseSession) -> dict:
-    dog = db.get(Dog, dog_id)
-    if dog is None:
-        raise HTTPException(status_code=404, detail="Dog not found.")
+def export_dog_data(dog_id: uuid.UUID, db: DatabaseSession, user: CurrentUser) -> dict:
+    dog = require_owned_dog(db, dog_id, user)
 
     event_rows = db.execute(
         select(Event, EventType, SavedOption)

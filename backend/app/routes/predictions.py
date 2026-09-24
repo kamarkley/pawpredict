@@ -1,12 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
-
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-
-from app.database import get_db
-from app.models.dog import Dog
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from app.schemas.prediction import PottyModelReport, PottyPredictionResponse
 from app.services.potty_prediction import (
     get_training_bundle,
@@ -14,10 +8,9 @@ from app.services.potty_prediction import (
     predict_potty,
 )
 from app.services.prediction_ledger import run_prediction_telemetry
+from app.security import CurrentUser, DatabaseSession, require_owned_dog
 
 router = APIRouter(prefix="/dogs", tags=["predictions"])
-DatabaseSession = Annotated[Session, Depends(get_db)]
-
 
 @router.get(
     "/{dog_id}/predictions/potty",
@@ -27,10 +20,10 @@ def potty_prediction(
     dog_id: uuid.UUID,
     background_tasks: BackgroundTasks,
     db: DatabaseSession,
+    user: CurrentUser,
     timezone_name: str = Query(default="UTC", alias="timezone"),
 ) -> PottyPredictionResponse:
-    if db.get(Dog, dog_id) is None:
-        raise HTTPException(status_code=404, detail="Dog not found.")
+    require_owned_dog(db, dog_id, user)
 
     now = datetime.now(timezone.utc)
 
@@ -68,10 +61,10 @@ def potty_prediction(
 def potty_model_report(
     dog_id: uuid.UUID,
     db: DatabaseSession,
+    user: CurrentUser,
     timezone_name: str = Query(default="UTC", alias="timezone"),
 ) -> PottyModelReport:
-    if db.get(Dog, dog_id) is None:
-        raise HTTPException(status_code=404, detail="Dog not found.")
+    require_owned_dog(db, dog_id, user)
     try:
         bundle = get_training_bundle(
             db,
