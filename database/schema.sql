@@ -273,7 +273,7 @@ INSERT INTO event_types (
 VALUES
     ('PEE', 'Pee', 'POTTY', FALSE, TRUE, FALSE),
     ('POOP', 'Poop', 'POTTY', FALSE, TRUE, FALSE),
-    ('POTTY_ATTEMPT', 'Potty Attempt', 'POTTY', FALSE, TRUE, FALSE),
+    ('POTTY_ATTEMPT', 'Potty Attempt', 'POTTY', FALSE, FALSE, FALSE),
     ('MEAL', 'Meal', 'NUTRITION', FALSE, FALSE, FALSE),
     ('WATER', 'Water', 'NUTRITION', FALSE, FALSE, FALSE),
     ('TREAT', 'Treat', 'NUTRITION', FALSE, FALSE, TRUE),
